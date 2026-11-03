@@ -27,7 +27,8 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 // environment win, so a platform secret store always overrides this file.
 try {
   const envFile = path.join(__dirname, '..', '.env');
-  if (fs.existsSync(envFile)) process.loadEnvFile?.(envFile);
+  // Never load local secrets under the test runner: tests must stay hermetic.
+  if (!process.env.NODE_TEST_CONTEXT && fs.existsSync(envFile)) process.loadEnvFile?.(envFile);
 } catch {
   /* ignore malformed .env: never crash the service over it */
 }

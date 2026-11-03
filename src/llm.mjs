@@ -157,15 +157,26 @@ export async function enhance({ incident, ruleTriage, grounding, context }) {
   const key = process.env.AEGIS_LLM_KEY || process.env.OPENAI_API_KEY;
   if (key) headers.authorization = `Bearer ${key}`;
 
+  const send = (body) => fetch(cfg.url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(cfg.timeoutMs),
+  });
+
   let raw;
+  let status = 0;
   try {
-    const res = await fetch(cfg.url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody(cfg, payload)),
-      signal: AbortSignal.timeout(cfg.timeoutMs),
-    });
-    if (!res.ok) return { triage: ruleTriage, used: 'rules', reason: `model HTTP ${res.status}` };
+    let res = await send(requestBody(cfg, payload));
+    status = res.status;
+    // Some OpenAI-compatible gateways reject response_format. Retry once relaxed.
+    if (!res.ok && cfg.provider !== 'ollama') {
+      const relaxed = requestBody(cfg, payload);
+      delete relaxed.response_format;
+      res = await send(relaxed);
+      status = res.status;
+    }
+    if (!res.ok) return { triage: ruleTriage, used: 'rules', reason: `model HTTP ${status}` };
     raw = extractContent(cfg, await res.json());
   } catch (e) {
     return { triage: ruleTriage, used: 'rules', reason: 'model unreachable: ' + e.name };
