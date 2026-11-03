@@ -62,7 +62,30 @@
     background:#0a1017;font-size:10.5px;color:var(--dim)}
   footer .grow{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
   .ring{width:100%;height:auto;max-height:170px}
-  .chip{font-size:9px;letter-spacing:1px;border:1px solid var(--line);border-radius:3px;padding:2px 5px;color:var(--dim)}
+  .chip{font-size:9px;letter-spacing:1px;border:1px solid var(--line);border-radius:3px;padding:2px 5px;
+    color:var(--dim);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+  .prose,.list-ol{overflow-wrap:anywhere}
+  header{min-width:0;flex-wrap:wrap}
+  header h1,.sub,.lnk,#modelBadge{flex-shrink:0}
+
+  /* narrow screens: stack the list over the detail, let header and footer wrap */
+  @media (max-width:900px){
+    .app{grid-template-rows:auto 1fr auto}
+    header{gap:10px;padding:8px 10px;min-height:52px}
+    header h1{font-size:13px;letter-spacing:1.5px}
+    header .sub{display:none}
+    .chip{max-width:150px}
+    main{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+    .list{border-right:none;border-bottom:1px solid var(--line);max-height:32vh}
+    .detail{padding:13px 12px}
+    .grid{grid-template-columns:1fr;gap:10px}
+    .hdr h2{font-size:15px}
+    footer{min-height:44px;flex-wrap:wrap;padding:7px 10px;gap:6px}
+    footer button{font-size:10px;padding:6px 8px}
+    footer .grow{order:9;flex-basis:100%;white-space:normal;line-height:1.5}
+    .ring{max-height:150px}
+    .empty{padding:34px 14px}
+  }
 </style>
 </head>
 <body>
@@ -114,15 +137,18 @@ const etaText = (m) => (m == null ? '—' : m > 120 ? (m / 60).toFixed(1) + ' h'
 function renderList() {
   const el = $('list');
   if (!incidents.length) { el.innerHTML = '<div class="empty">No incidents.<br>Use the wristband buttons below.</div>'; return; }
-  el.innerHTML = incidents.map((i) => `
+  el.innerHTML = incidents.map((i) => {
+    const v = i.vitals || {};
+    return `
     <div class="item ${selected === i.id ? 'sel' : ''}" data-id="${i.id}">
       <div class="row">
         <span class="prio ${prioClass(i.priority_level)}">P${i.priority_level ?? '–'}</span>
         <h3>${esc(i.device_label)}</h3>
         <span class="st">${esc(i.state)}</span>
       </div>
-      <div class="meta">${esc(i.category || 'untriaged')} · HR ${i.vitals.heart_rate ?? '—'} · SpO2 ${i.vitals.spo2 ?? '—'} · batt ${i.vitals.battery_pct ?? '—'}% · ${esc(i.source)}</div>
-    </div>`).join('');
+      <div class="meta">${esc(i.category || 'untriaged')} · HR ${v.heart_rate ?? '—'} · SpO2 ${v.spo2 ?? '—'} · batt ${v.battery_pct ?? '—'}% · ${esc(i.source)}</div>
+    </div>`;
+  }).join('');
   el.querySelectorAll('.item').forEach((n) => { n.onclick = () => { selected = n.dataset.id; renderList(); renderDetail(); }; });
 }
 
@@ -142,7 +168,7 @@ function ringSvg(inc) {
   }).join('');
   const hs = hosp.map((h) => {
     const [x, y] = toXY(h.lat, h.lon);
-    return `<circle cx="${x}" cy="${y}" r="4" fill="#4aa8ff"/><text x="${x + 6}" y="${y + 3}" fill="#4aa8ff" font-size="7">${esc(h.name.split(' ').slice(-1)[0])}</text>`;
+    return `<circle cx="${x}" cy="${y}" r="4" fill="#4aa8ff"/><text x="${Math.min(x + 6, 134)}" y="${y + 3}" fill="#4aa8ff" font-size="7">${esc(String(h.name).split(' ').slice(-1)[0])}</text>`;
   }).join('');
   return `<svg class="ring" viewBox="0 0 150 150">
     <circle cx="75" cy="75" r="62" fill="none" stroke="#1b2836" stroke-dasharray="3 5"/>
@@ -176,10 +202,10 @@ async function renderDetail() {
       <h2>${esc(full.device_label)}</h2>
       <span class="prio ${prioClass(t.priority_level)}">P${t.priority_level ?? '–'}</span>
       <span class="state">${esc(t.triage_category || '—')} · ${esc(full.state)}</span>
-      <span class="chip" title="which engine produced this triage">${esc(full.model ? full.model.used : 'rules')}</span>
+      <span class="chip" title="which engine produced this triage">${esc(full.model ? (full.model.model || full.model.used) : 'rules')}</span>
     </div>
     <div style="color:var(--dim);font-size:11px">
-      ${full.position.lat.toFixed(5)}, ${full.position.lon.toFixed(5)} · alt ${full.position.altitude_m} m ·
+      ${(full.position?.lat ?? 0).toFixed(5)}, ${(full.position?.lon ?? 0).toFixed(5)} · alt ${full.position?.altitude_m ?? '—'} m ·
       ${full.telemetry_bytes} B telemetry / ${full.envelope_bytes} B envelope · key ${esc(full.key_id)} · ${esc(full.source)}
     </div>
 
