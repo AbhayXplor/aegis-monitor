@@ -1,0 +1,140 @@
+openapi: 3.1.0
+info:
+  title: AegisMonitor — aegis-core-service
+  version: 0.1.0
+  description: >
+    Proprietary core service. Decoupled from worldmonitor (AGPL-3.0) by design:
+    the only integration surface is REST + WebSocket, so no AGPL code is linked
+    into this service.
+servers:
+  - url: http://localhost:3001
+paths:
+  /api/v1/sat-ingest:
+    post:
+      summary: Ingest one encrypted beacon envelope
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary, description: "[ver:1][keyId:1][iv:12][tag:16][ct:n], AES-256-GCM" }
+          application/json:
+            schema:
+              type: object
+              properties:
+                envelope_base64: { type: string }
+      responses:
+        "201":
+          description: Incident created and triaged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IngestResponse" }
+        "401": { description: Authentication failed (GCM tag) }
+        "409": { description: Replay or stale timestamp }
+        "413": { description: Envelope at or above the 100 byte cap }
+        "422": { description: Decode or field validation failed }
+  /api/v1/incidents:
+    get:
+      summary: List incidents for the CAD panel
+      responses:
+        "200":
+          description: Incident summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incidents: { type: array, items: { $ref: "#/components/schemas/IncidentSummary" } }
+                  ws_clients: { type: integer }
+  /api/v1/incidents/{id}:
+    get:
+      summary: Full incident record including triage and audit trail
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Incident }
+        "404": { description: Unknown incident }
+  /api/v1/incidents/{id}/transition:
+    post:
+      summary: Apply a CAD state transition
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to, actor]
+              properties:
+                to: { type: string, enum: [AI_TRIAGED, UNIT_ASSIGNED, EN_ROUTE, EXTRACTED, CLOSED] }
+                actor: { type: string, enum: [system, dispatcher, unit] }
+                reason: { type: string }
+      responses:
+        "200": { description: Transition applied }
+        "409": { description: Illegal transition or actor not permitted }
+  /api/v1/incidents/{id}/downlink:
+    post:
+      summary: Queue a satellite downlink to the device
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, maxLength: 160, description: ASCII only }
+      responses:
+        "200": { description: Queued }
+        "422": { description: Too long or non-ASCII }
+  /api/v1/health:
+    get:
+      summary: Liveness, counters and feature status
+      responses:
+        "200": { description: OK }
+  /api/v1/dev/simulate:
+    post:
+      summary: DEV ONLY — build, encrypt and ingest a synthetic beacon
+      responses:
+        "201": { description: Synthetic incident created }
+        "403": { description: Disabled via AEGIS_DEV=0 }
+components:
+  schemas:
+    IngestResponse:
+      type: object
+      properties:
+        incident_id: { type: string, example: INC-0001 }
+        state: { type: string, example: AI_TRIAGED }
+        triage: { $ref: "https://aegis.local/schemas/triage-output.v1.json" }
+    IncidentSummary:
+      type: object
+      properties:
+        id: { type: string }
+        device_label: { type: string }
+        state: { type: string }
+        received_at: { type: string, format: date-time }
+        position:
+          type: object
+          properties:
+            lat: { type: number }
+            lon: { type: number }
+            altitude_m: { type: integer }
+        vitals:
+          type: object
+          properties:
+            heart_rate: { type: ["integer", "null"] }
+            spo2: { type: ["integer", "null"] }
+            battery_pct: { type: ["integer", "null"] }
+            duress_flag: { type: boolean }
+        priority: { type: ["string", "null"], enum: [P1, P2, P3, null] }
+        category: { type: ["string", "null"] }
+x-websocket:
+  url: ws://localhost:3001/ws
+  direction: server-to-client only
+  events:
+    - INCIDENT_CREATED
+    - INCIDENT_TRIAGED
+    - INCIDENT_STATE
+    - DOWNLINK_QUEUED

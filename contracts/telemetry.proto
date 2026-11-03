@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package aegis.telemetry.v1;
+
+// Ultra-low-bandwidth distress beacon.
+// Hard cap: the encoded message must be < 100 bytes (see MAX_PACKET_BYTES in
+// proto.mjs and the size test). Typical encoded size is 28–38 bytes.
+
+message DistressBeacon {
+  uint32 device_id    = 1;  // rotating hardware id, 0x4B21 style
+  uint32 timestamp    = 2;  // unix seconds, replay window ±300 s
+  sint32 lat          = 3;  // microdegrees
+  sint32 lon          = 4;  // microdegrees
+  sint32 altitude_m   = 5;  // metres above ellipsoid, signed
+  SosCode sos_code    = 6;
+  uint32 heart_rate   = 7;  // bpm, 0 = unknown
+  uint32 spo2         = 8;  // percent, 0 = unknown
+  uint32 battery_pct  = 9;  // 0-100
+  bool  duress_flag   = 10; // covert mode; suppresses detail in downlink
+  bytes ext           = 11; // forward-compat padding; capped by the 100 B limit
+
+  enum SosCode {
+    UNSPECIFIED   = 0;
+    MEDICAL       = 1;
+    TRAUMA        = 2;
+    HOSTILE       = 3;
+    EVACUATION    = 4;
+    WATER         = 5;
+    CHILDBIRTH    = 6;
+  }
+}
+
+// Envelope (not protobuf): [version:1][key_id:1][iv:12][gcm_tag:16][ciphertext:n]
+// AES-256-GCM. The GCM tag is the authenticity check.
+//
+// CBOR fallback: TODO — not implemented in v0.1. The decode seam is
+// `crypto.decrypt -> proto.decode`; a CBOR decoder plugs in beside it.

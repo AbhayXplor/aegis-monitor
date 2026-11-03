@@ -1,0 +1,13 @@
+{
+  "name": "aegis-core-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AegisMonitor core service — encrypted beacon ingest, geo-context, triage, CAD state engine (v0.1, dependency-free)",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test test/"
+  },
+  "license": "UNLICENSED"
+}
