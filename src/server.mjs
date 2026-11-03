@@ -23,6 +23,15 @@ import { attachWS, broadcast, clientCount } from './ws.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
+// Load aegis/.env if present. A missing file is fine. Values already in the
+// environment win, so a platform secret store always overrides this file.
+try {
+  const envFile = path.join(__dirname, '..', '.env');
+  if (fs.existsSync(envFile)) process.loadEnvFile?.(envFile);
+} catch {
+  /* ignore malformed .env: never crash the service over it */
+}
+
 const incidents = new Map();
 let seq = 0;
 const nextId = () => 'INC-' + String(++seq).padStart(4, '0');

@@ -16,6 +16,10 @@
   header .sub{color:var(--dim);font-size:10.5px;letter-spacing:1px}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--p4);margin-left:auto}
   .dot.off{background:var(--p1)}
+  .lnk{color:var(--dim);text-decoration:none;font-size:10.5px;letter-spacing:1px;
+    border:1px solid var(--line);padding:3px 8px;border-radius:4px}
+  .lnk:hover{color:var(--accent);border-color:var(--accent)}
+  .chip.on{color:var(--p4);border-color:var(--p4)}
   main{display:grid;grid-template-columns:340px 1fr;min-height:0}
   .list{border-right:1px solid var(--line);overflow-y:auto;background:var(--panel)}
   .item{padding:11px 13px;border-bottom:1px solid #131e29;cursor:pointer}
@@ -66,6 +70,8 @@
   <header>
     <h1>AEGIS<span style="color:var(--accent)">·</span>CAD</h1>
     <span class="sub">satellite distress · triage · dispatch</span>
+    <a class="lnk" href="/" title="SHADE CLOCK demo">SHADE ↗</a>
+    <span class="chip" id="modelBadge" title="triage engine in use">RULES ONLY</span>
     <span class="dot off" id="wsDot" title="websocket"></span>
   </header>
 
@@ -170,6 +176,7 @@ async function renderDetail() {
       <h2>${esc(full.device_label)}</h2>
       <span class="prio ${prioClass(t.priority_level)}">P${t.priority_level ?? '–'}</span>
       <span class="state">${esc(t.triage_category || '—')} · ${esc(full.state)}</span>
+      <span class="chip" title="which engine produced this triage">${esc(full.model ? full.model.used : 'rules')}</span>
     </div>
     <div style="color:var(--dim);font-size:11px">
       ${full.position.lat.toFixed(5)}, ${full.position.lon.toFixed(5)} · alt ${full.position.altitude_m} m ·
@@ -315,6 +322,13 @@ function connect() {
     } catch { /* ignore */ }
   };
 }
+
+api('/api/v1/health').then((h) => {
+  const b = $('modelBadge');
+  b.textContent = h.llm.enabled ? 'LLM · ' + h.llm.model : 'RULES ONLY';
+  b.classList.toggle('on', !!h.llm.enabled);
+  b.title = h.llm.enabled ? 'model pass active, rules act as a floor' : 'deterministic rules only (no model configured)';
+}).catch(() => {});
 
 refresh();
 connect();
