@@ -1,86 +1,40 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://aegis.local/schemas/triage-output.v1.json",
-  "title": "TriageOutput",
+  "$id": "https://aegis.local/schemas/triage-output.v2.json",
+  "title": "TriageOutput (brief §3)",
+  "description": "Strict schema. additionalProperties is false: the engine may not add fields.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "incident_id",
-    "status",
-    "priority",
+    "priority_level",
     "triage_category",
-    "confidence",
-    "vitals_assessment",
-    "grounding",
-    "geo_facts",
-    "routes",
+    "physiological_status",
+    "hazard_assessment",
+    "deconflicted_route_plan",
+    "dispatcher_checklist",
     "user_satellite_reply"
   ],
   "properties": {
-    "incident_id": { "type": "string", "pattern": "^INC-[0-9]{4}$" },
-    "status": { "enum": ["OK", "CONTEXT_MISSING"] },
-    "priority": { "enum": ["P1", "P2", "P3"] },
+    "incident_id": { "type": "string", "pattern": "^INC-[0-9]{4,}$" },
+    "priority_level": { "type": "integer", "minimum": 1, "maximum": 5 },
     "triage_category": {
-      "enum": [
-        "TRAUMA",
-        "MEDICAL",
-        "OBSTETRIC",
-        "PAEDIATRIC",
-        "BURN",
-        "CRUSH",
-        "RESPIRATORY",
-        "HOSTAGE_COVERT",
-        "UNKNOWN"
-      ]
+      "enum": ["MEDEVAC", "COMBAT_EXTRACTION", "HOSTAGE_COVERT", "SAR", "SUPPLY_DROP"]
     },
-    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-    "vitals_assessment": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["spo2", "heart_rate", "battery_pct", "duress", "note"],
-      "properties": {
-        "spo2": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
-        "heart_rate": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
-        "battery_pct": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
-        "duress": { "type": "boolean" },
-        "note": { "type": "string", "maxLength": 64 }
-      }
-    },
-    "recommended_asset": { "type": ["string", "null"] },
-    "routes": {
+    "physiological_status": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "hazard_assessment": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "deconflicted_route_plan": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "dispatcher_checklist": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["asset", "capability", "eta_min", "status", "blocked_by"],
-        "properties": {
-          "asset": { "type": "string" },
-          "capability": { "type": "array", "items": { "type": "string" } },
-          "eta_min": { "type": "integer", "minimum": 0 },
-          "status": { "enum": ["OPEN", "BLOCKED"] },
-          "blocked_by": { "type": "array", "items": { "type": "string" } }
-        }
-      }
-    },
-    "geo_facts": { "type": "array", "items": { "type": "string", "maxLength": 220 } },
-    "grounding": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["source", "chunk_id", "topic", "quote"],
-        "properties": {
-          "source": { "enum": ["LOCAL_KB"] },
-          "chunk_id": { "type": "string" },
-          "topic": { "type": "string" },
-          "quote": { "type": "string", "maxLength": 400 }
-        }
-      }
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "type": "string", "minLength": 1, "maxLength": 200 }
     },
     "user_satellite_reply": {
       "type": "string",
       "maxLength": 160,
-      "pattern": "^[\\x20-\\x7E]*$"
+      "pattern": "^[\\x20-\\x7E]*$",
+      "description": "'HAPTIC_ACK_ONLY' for covert/duress incidents, otherwise imperative ASCII <= 160 chars"
     }
   }
 }

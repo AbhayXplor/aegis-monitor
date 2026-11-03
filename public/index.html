@@ -5,27 +5,29 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>AegisMonitor — CAD</title>
 <style>
-  :root{--bg:#070b10;--panel:#0c131b;--line:#1b2836;--ink:#e6eef6;--dim:#7b8fa3;
-        --p1:#ff3b4e;--p2:#ffb020;--p3:#38d9c0;--accent:#4aa8ff;}
+  :root{--bg:#070b10;--panel:#0c131b;--line:#1b2836;--ink:#e6eef6;--dim:#7b8fa3;--accent:#4aa8ff;
+        --p1:#ff2f43;--p2:#ff7a1a;--p3:#ffb020;--p4:#38d9c0;--p5:#7aa2ff;}
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{background:var(--bg);color:var(--ink);font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden}
-  .app{display:grid;grid-template-rows:52px 1fr 40px;height:100%}
+  .app{display:grid;grid-template-rows:52px 1fr 44px;height:100%}
   header{display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);background:#0a1017}
   header h1{margin:0;font-size:14px;letter-spacing:3px}
   header .sub{color:var(--dim);font-size:10.5px;letter-spacing:1px}
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--p3);margin-left:auto}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--p4);margin-left:auto}
   .dot.off{background:var(--p1)}
-  main{display:grid;grid-template-columns:330px 1fr;min-height:0}
+  main{display:grid;grid-template-columns:340px 1fr;min-height:0}
   .list{border-right:1px solid var(--line);overflow-y:auto;background:var(--panel)}
   .item{padding:11px 13px;border-bottom:1px solid #131e29;cursor:pointer}
   .item:hover{background:#101a24}
   .item.sel{background:#12212f;box-shadow:inset 3px 0 0 var(--accent)}
   .row{display:flex;align-items:center;gap:8px}
   .prio{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;border:1px solid}
-  .p1{color:var(--p1);border-color:var(--p1);background:rgba(255,59,78,.1)}
-  .p2{color:var(--p2);border-color:var(--p2);background:rgba(255,176,32,.1)}
-  .p3{color:var(--p3);border-color:var(--p3);background:rgba(56,217,192,.1)}
+  .p1{color:var(--p1);border-color:var(--p1);background:rgba(255,47,67,.1)}
+  .p2{color:var(--p2);border-color:var(--p2);background:rgba(255,122,26,.1)}
+  .p3{color:var(--p3);border-color:var(--p3);background:rgba(255,176,32,.1)}
+  .p4{color:var(--p4);border-color:var(--p4);background:rgba(56,217,192,.1)}
+  .p5{color:var(--p5);border-color:var(--p5);background:rgba(122,162,255,.1)}
   .item h3{margin:0;font-size:12px}
   .item .meta{margin-top:4px;color:var(--dim);font-size:10.5px}
   .item .st{margin-left:auto;font-size:9px;letter-spacing:1px;color:var(--accent)}
@@ -35,32 +37,28 @@
   .hdr .state{font-size:10px;letter-spacing:1.6px;color:var(--accent)}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
   .card{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--panel)}
+  .card.wide{grid-column:1 / -1}
   .card h4{margin:0 0 8px;font-size:9.5px;letter-spacing:1.8px;color:var(--dim);text-transform:uppercase}
   .kv{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:2px 0}
-  .kv b{font-weight:600}
-  .bad{color:var(--p1)}
-  .ok{color:var(--p3)}
-  .warn{color:var(--p2)}
-  .facts{font-size:11px;color:#a9bccd;line-height:1.7;margin:0;padding-left:16px}
-  .quote{border-left:2px solid #24405a;padding:4px 0 4px 10px;margin:8px 0;font-size:10.5px;color:#9db2c5}
-  .quote b{color:var(--accent);font-size:9.5px;letter-spacing:1px}
+  .bad{color:var(--p1)}.ok{color:var(--p4)}.warn{color:var(--p3)}
+  .prose{font-size:11.5px;color:#b4c7d8;line-height:1.65;margin:0}
+  .list-ol{margin:0;padding-left:18px;font-size:11.5px;line-height:1.7;color:#b4c7d8}
   .btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
   button{font:inherit;font-size:11px;padding:7px 11px;border-radius:6px;border:1px solid var(--line);
     background:#101c27;color:var(--ink);cursor:pointer}
   button:hover{border-color:var(--accent);color:var(--accent)}
-  button.go{border-color:var(--p3);color:var(--p3)}
+  button.go{border-color:var(--p4);color:var(--p4)}
   button.gobad{border-color:var(--p1);color:#ff9aa4}
-  button:disabled{opacity:.4;cursor:not-allowed}
-  .composer{margin-top:14px}
   textarea{width:100%;background:#08101a;border:1px solid #22384d;border-radius:6px;color:var(--ink);
-    font:inherit;font-size:12px;padding:9px;resize:vertical;min-height:64px}
+    font:inherit;font-size:12px;padding:9px;resize:vertical;min-height:60px}
   .count{font-size:10px;color:var(--dim);margin-top:4px}
   .count.over{color:var(--p1)}
   .empty{color:var(--dim);text-align:center;padding:60px 20px;font-size:11.5px;line-height:1.8}
-  footer{display:flex;align-items:center;gap:16px;padding:0 16px;border-top:1px solid var(--line);
+  footer{display:flex;align-items:center;gap:10px;padding:0 16px;border-top:1px solid var(--line);
     background:#0a1017;font-size:10.5px;color:var(--dim)}
   footer .grow{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-  .ring{width:150px;height:150px}
+  .ring{width:100%;height:auto;max-height:170px}
+  .chip{font-size:9px;letter-spacing:1px;border:1px solid var(--line);border-radius:3px;padding:2px 5px;color:var(--dim)}
 </style>
 </head>
 <body>
@@ -72,16 +70,18 @@
   </header>
 
   <main>
-    <div class="list" id="list"><div class="empty">No incidents.<br>Use <b>SIMULATE BEACON</b> below.</div></div>
+    <div class="list" id="list"><div class="empty">No incidents.<br>Use the wristband buttons below.</div></div>
     <div class="detail" id="detail">
-      <div class="empty">Select an incident, or spawn a synthetic beacon.<br><br>
-        Everything here is synthetic. No live satellite, patient or conflict data.</div>
+      <div class="empty">Select an incident, or trigger a wristband gesture.<br><br>
+        Synthetic beacons only. No live satellite, patient or conflict data.</div>
     </div>
   </main>
 
   <footer>
-    <button id="btnSim">▶ SIMULATE BEACON</button>
-    <button id="btnSimDuress">▶ DURESS</button>
+    <button id="btnMedical">3-PRESS · MEDICAL</button>
+    <button id="btnHostile">5-PRESS · HOSTILE</button>
+    <button id="btnMesh">MESH RELAY (2 HOPS)</button>
+    <button id="btnSim">PLAIN BEACON</button>
     <span class="grow" id="log">ready</span>
     <span id="counts">0 incidents</span>
   </footer>
@@ -92,52 +92,46 @@ let incidents = [];
 let selected = null;
 const $ = (id) => document.getElementById(id);
 const log = (m) => { $('log').textContent = m; };
+const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
 async function api(path, opts) {
   const res = await fetch(path, opts);
   const text = await res.text();
-  let body;
-  try { body = JSON.parse(text); } catch { body = { raw: text }; }
+  let body; try { body = JSON.parse(text); } catch { body = { raw: text }; }
   if (!res.ok) throw new Error(body.error || res.status + ' ' + res.statusText);
   return body;
 }
 
-function prioClass(p) { return p === 'P1' ? 'p1' : p === 'P2' ? 'p2' : 'p3'; }
-const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const prioClass = (p) => 'p' + (p || 3);
+const etaText = (m) => (m == null ? '—' : m > 120 ? (m / 60).toFixed(1) + ' h' : m + ' min');
 
 function renderList() {
   const el = $('list');
-  if (!incidents.length) {
-    el.innerHTML = '<div class="empty">No incidents.<br>Use <b>SIMULATE BEACON</b> below.</div>';
-    return;
-  }
+  if (!incidents.length) { el.innerHTML = '<div class="empty">No incidents.<br>Use the wristband buttons below.</div>'; return; }
   el.innerHTML = incidents.map((i) => `
     <div class="item ${selected === i.id ? 'sel' : ''}" data-id="${i.id}">
       <div class="row">
-        <span class="prio ${prioClass(i.priority)}">${i.priority || '—'}</span>
+        <span class="prio ${prioClass(i.priority_level)}">P${i.priority_level ?? '–'}</span>
         <h3>${esc(i.device_label)}</h3>
         <span class="st">${esc(i.state)}</span>
       </div>
-      <div class="meta">${esc(i.category || 'untriaged')} · HR ${i.vitals.heart_rate ?? '—'} · SpO2 ${i.vitals.spo2 ?? '—'} · batt ${i.vitals.battery_pct ?? '—'}%</div>
+      <div class="meta">${esc(i.category || 'untriaged')} · HR ${i.vitals.heart_rate ?? '—'} · SpO2 ${i.vitals.spo2 ?? '—'} · batt ${i.vitals.battery_pct ?? '—'}% · ${esc(i.source)}</div>
     </div>`).join('');
-  el.querySelectorAll('.item').forEach((n) => {
-    n.onclick = () => { selected = n.dataset.id; renderList(); renderDetail(); };
-  });
+  el.querySelectorAll('.item').forEach((n) => { n.onclick = () => { selected = n.dataset.id; renderList(); renderDetail(); }; });
 }
 
 function ringSvg(inc) {
   const ctx = inc.context || { hazards: [] };
   const haz = ctx.hazards || [];
   const hosp = ctx.hospitals || [];
-  const cx = 75, cy = 75, scale = 2.4;
   const toXY = (lat, lon) => {
     const dx = (lon - inc.position.lon) * 111.32 * Math.cos(inc.position.lat * Math.PI / 180);
     const dy = (lat - inc.position.lat) * 111.32;
-    return [cx + dx * scale, cy - dy * scale];
+    return [75 + dx * 2.4, 75 - dy * 2.4];
   };
   const polys = haz.map((h) => {
     const pts = h.polygon.map(([lat, lon]) => toXY(lat, lon).map((n) => n.toFixed(1)).join(',')).join(' ');
-    const col = h.severity === 'HIGH' ? '#ff3b4e' : '#ffb020';
+    const col = h.severity === 'HIGH' ? '#ff2f43' : '#ffb020';
     return `<polygon points="${pts}" fill="${col}22" stroke="${col}" stroke-width="1"/>`;
   }).join('');
   const hs = hosp.map((h) => {
@@ -149,145 +143,163 @@ function ringSvg(inc) {
     <circle cx="75" cy="75" r="31" fill="none" stroke="#1b2836" stroke-dasharray="2 4"/>
     ${polys}${hs}
     <circle cx="75" cy="75" r="5" fill="#38d9c0"/>
-    <text x="75" y="12" fill="#7b8fa3" font-size="7" text-anchor="middle">25 km</text>
+    <text x="75" y="10" fill="#7b8fa3" font-size="7" text-anchor="middle">25 km</text>
   </svg>`;
 }
 
-function renderDetail() {
-  const inc = incidents.find((i) => i.id === selected);
+async function renderDetail() {
+  const stub = incidents.find((i) => i.id === selected);
   const el = $('detail');
-  if (!inc) { el.innerHTML = '<div class="empty">Select an incident.</div>'; return; }
-  api('/api/v1/incidents/' + inc.id).then((full) => {
-    const t = full.triage || {};
-    const routes = (t.routes || []).map((r) => `
-      <div class="kv"><span>${esc(r.asset)}</span>
-      <b class="${r.status === 'OPEN' ? 'ok' : 'bad'}">${r.status} · ${r.eta_min} min</b></div>
-      ${r.blocked_by.length ? `<div class="kv"><span></span><small class="bad">${esc(r.blocked_by.join(' / '))}</small></div>` : ''}`).join('') || '<div class="kv"><span>no routes</span></div>';
+  if (!stub) { el.innerHTML = '<div class="empty">Select an incident.</div>'; return; }
+  let full;
+  try { full = await api('/api/v1/incidents/' + stub.id); } catch (e) { el.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  const t = full.triage || {};
 
-    const audit = (full.audit || []).slice().reverse().map((a) =>
-      `<div class="kv"><span>${esc(a.from || '—')} → ${esc(a.to)} <small style="color:#5f768a">${esc(a.actor)}</small></span>
-       <small>${esc((a.at || '').slice(11, 19))}</small></div>
-       <div style="font-size:10px;color:#5f768a;margin-bottom:5px">${esc(a.reason)}</div>`).join('');
+  const routes = (full.routes || []).map((r) => `
+    <div class="kv"><span>${esc(r.asset)}</span><b class="${r.status === 'OPEN' ? 'ok' : 'bad'}">${r.status} · ${r.eta_min} min</b></div>
+    ${r.blocked_by.length ? `<div class="kv"><span></span><small class="bad">${esc(r.blocked_by.join(' / '))}</small></div>` : ''}`).join('')
+    || '<div class="kv"><span>no routes</span></div>';
 
-    el.innerHTML = `
-      <div class="hdr">
-        <h2>${esc(full.device_label)}</h2>
-        <span class="state">${esc(full.state)} · ${esc(t.priority || '—')} ${esc(t.triage_category || '')}</span>
+  const audit = (full.audit || []).slice().reverse().map((a) =>
+    `<div class="kv"><span>${esc(a.from || '—')} → ${esc(a.to)} <span class="chip">${esc(a.actor)}</span></span>
+     <small>${esc((a.at || '').slice(11, 19))}</small></div>
+     <div style="font-size:10px;color:#5f768a;margin-bottom:5px">${esc(a.reason)}</div>`).join('');
+
+  el.innerHTML = `
+    <div class="hdr">
+      <h2>${esc(full.device_label)}</h2>
+      <span class="prio ${prioClass(t.priority_level)}">P${t.priority_level ?? '–'}</span>
+      <span class="state">${esc(t.triage_category || '—')} · ${esc(full.state)}</span>
+    </div>
+    <div style="color:var(--dim);font-size:11px">
+      ${full.position.lat.toFixed(5)}, ${full.position.lon.toFixed(5)} · alt ${full.position.altitude_m} m ·
+      ${full.telemetry_bytes} B telemetry / ${full.envelope_bytes} B envelope · key ${esc(full.key_id)} · ${esc(full.source)}
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h4>Vitals & link</h4>
+        <div class="kv"><span>heart rate</span><b class="${full.vitals.heart_rate > 130 ? 'bad' : ''}">${full.vitals.heart_rate ?? '—'} bpm</b></div>
+        <div class="kv"><span>SpO2</span><b class="${full.vitals.spo2 && full.vitals.spo2 < 90 ? 'bad' : ''}">${full.vitals.spo2 ?? '—'} %</b></div>
+        <div class="kv"><span>battery</span><b class="${full.vitals.battery_pct < 15 ? 'warn' : ''}">${full.vitals.battery_pct ?? '—'} %</b></div>
+        <div class="kv"><span>battery ETA (est.)</span><b>${etaText(full.battery_eta_min)}</b></div>
+        <div class="kv"><span>duress</span><b class="${full.vitals.duress_flag ? 'bad' : 'ok'}">${full.vitals.duress_flag ? 'YES — COVERT' : 'no'}</b></div>
+        ${full.mesh ? `<div class="kv"><span>mesh hops</span><b>${full.mesh.hops}</b></div>` : ''}
       </div>
-      <div style="color:var(--dim);font-size:11px">
-        ${full.position.lat.toFixed(5)}, ${full.position.lon.toFixed(5)} · alt ${full.position.altitude_m} m ·
-        ${full.telemetry_bytes} B telemetry / ${full.envelope_bytes} B envelope · key ${esc(full.key_id)}
+      <div class="card">
+        <h4>25 km context</h4>
+        ${ringSvg(full)}
       </div>
+    </div>
 
-      <div class="grid">
-        <div class="card">
-          <h4>Vitals</h4>
-          <div class="kv"><span>heart rate</span><b class="${full.vitals.heart_rate > 130 ? 'bad' : ''}">${full.vitals.heart_rate ?? '—'} bpm</b></div>
-          <div class="kv"><span>SpO2</span><b class="${full.vitals.spo2 && full.vitals.spo2 < 90 ? 'bad' : ''}">${full.vitals.spo2 ?? '—'} %</b></div>
-          <div class="kv"><span>battery</span><b class="${full.vitals.battery_pct < 15 ? 'warn' : ''}">${full.vitals.battery_pct ?? '—'} %</b></div>
-          <div class="kv"><span>duress</span><b class="${full.vitals.duress_flag ? 'bad' : 'ok'}">${full.vitals.duress_flag ? 'YES' : 'no'}</b></div>
-          <div class="kv"><span>confidence</span><b>${t.confidence ?? '—'}</b></div>
-        </div>
-        <div class="card">
-          <h4>25 km context</h4>
-          ${ringSvg(full)}
-        </div>
+    <div class="grid">
+      <div class="card wide">
+        <h4>Physiological status</h4>
+        <p class="prose">${esc(t.physiological_status)}</p>
+        <h4 style="margin-top:12px">Hazard assessment</h4>
+        <p class="prose">${esc(t.hazard_assessment)}</p>
+        <h4 style="margin-top:12px">Deconflicted route plan</h4>
+        <p class="prose">${esc(t.deconflicted_route_plan)}</p>
       </div>
+    </div>
 
-      <div class="grid">
-        <div class="card">
-          <h4>Dispatch assessment</h4>
-          ${routes}
-          <div class="kv" style="margin-top:6px"><span>recommended</span><b class="ok">${esc(t.recommended_asset || 'none')}</b></div>
-        </div>
-        <div class="card">
-          <h4>Grounded guidance</h4>
-          ${(t.grounding || []).map((g) => `<div class="quote"><b>${esc(g.chunk_id)}</b> ${esc(g.quote)}</div>`).join('') || '<div style="color:var(--dim);font-size:11px">none</div>'}
-        </div>
+    <div class="grid">
+      <div class="card">
+        <h4>Dispatcher checklist</h4>
+        <ol class="list-ol">${(t.dispatcher_checklist || []).map((c) => `<li>${esc(c)}</li>`).join('')}</ol>
       </div>
-
-      <div class="card" style="margin-top:14px">
-        <h4>Geo facts (from supplied context only)</h4>
-        <ul class="facts">${(t.geo_facts || []).map((f) => `<li>${esc(f)}</li>`).join('') || '<li>none</li>'}</ul>
+      <div class="card">
+        <h4>Routed assets</h4>
+        ${routes}
+        <h4 style="margin-top:10px">Protocol grounding</h4>
+        ${(full.grounding || []).map((g) => `<div style="border-left:2px solid #24405a;padding:3px 0 3px 9px;margin:6px 0;font-size:10px;color:#9db2c5"><b style="color:var(--accent)">${esc(g.chunk_id)}</b> ${esc(g.quote)}</div>`).join('') || '<div style="color:var(--dim);font-size:10.5px">none</div>'}
       </div>
+    </div>
 
-      <div class="btns">
-        <button data-to="UNIT_ASSIGNED" class="go">ASSIGN ${esc(t.recommended_asset || 'UNIT')}</button>
-        <button data-to="EN_ROUTE">EN ROUTE</button>
-        <button data-to="EXTRACTED">EXTRACTED</button>
-        <button data-to="CLOSED" class="gobad">CLOSE</button>
-      </div>
+    <div class="btns">
+      <button data-to="UNIT_ASSIGNED" class="go">ASSIGN</button>
+      <button data-to="EN_ROUTE">EN ROUTE</button>
+      <button data-to="EXTRACTED">EXTRACTED</button>
+      <button data-to="CLOSED" class="gobad">CLOSE</button>
+    </div>
 
-      <div class="composer card" style="margin-top:14px">
-        <h4>Downlink to device · 160 chars</h4>
-        <textarea id="dl" maxlength="400">${esc(t.user_satellite_reply || '')}</textarea>
-        <div class="count" id="dlCount">0 / 160</div>
-        <div class="btns"><button id="btnDl">QUEUE DOWNLINK</button></div>
-      </div>
+    <div class="card" style="margin-top:14px">
+      <h4>Downlink to device · 160 chars</h4>
+      <textarea id="dl" maxlength="400">${esc(t.user_satellite_reply || '')}</textarea>
+      <div class="count" id="dlCount">0 / 160</div>
+      <div class="btns"><button id="btnDl">QUEUE DOWNLINK</button></div>
+    </div>
 
-      <div class="card" style="margin-top:14px">
-        <h4>Audit trail</h4>
-        ${audit || '<div style="color:var(--dim);font-size:11px">empty</div>'}
-      </div>`;
+    <div class="card" style="margin-top:14px">
+      <h4>Audit trail</h4>
+      ${audit || '<div style="color:var(--dim);font-size:11px">empty</div>'}
+    </div>`;
 
-    el.querySelectorAll('.btns button[data-to]').forEach((b) => {
-      b.onclick = async () => {
-        try {
-          const r = await api(`/api/v1/incidents/${full.id}/transition`, {
-            method: 'POST', headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ to: b.dataset.to, actor: 'dispatcher', reason: 'panel action' }),
-          });
-          log(`${full.id} → ${r.state}`);
-          await refresh();
-        } catch (e) { log('REFUSED: ' + e.message); }
-      };
-    });
-
-    const dl = $('dl');
-    const count = $('dlCount');
-    const sync = () => {
-      const n = dl.value.length;
-      count.textContent = `${n} / 160`;
-      count.className = 'count' + (n > 160 ? ' over' : '');
-    };
-    dl.oninput = sync; sync();
-    $('btnDl').onclick = async () => {
+  el.querySelectorAll('.btns button[data-to]').forEach((b) => {
+    b.onclick = async () => {
       try {
-        const r = await api(`/api/v1/incidents/${full.id}/downlink`, {
+        const r = await api(`/api/v1/incidents/${full.id}/transition`, {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ text: dl.value, actor: 'dispatcher' }),
+          body: JSON.stringify({ to: b.dataset.to, actor: 'dispatcher', reason: 'panel action' }),
         });
-        log(`downlink queued (${r.chars} chars)`);
-      } catch (e) { log('DOWNLINK REFUSED: ' + e.message); }
+        log(`${full.id} → ${r.state}`);
+        await refresh();
+      } catch (e) { log('REFUSED: ' + e.message); }
     };
-  }).catch((e) => { el.innerHTML = `<div class="empty">${esc(e.message)}</div>`; });
+  });
+
+  const dl = $('dl'), count = $('dlCount');
+  const sync = () => { const n = dl.value.length; count.textContent = `${n} / 160`; count.className = 'count' + (n > 160 ? ' over' : ''); };
+  dl.oninput = sync; sync();
+  $('btnDl').onclick = async () => {
+    try {
+      const r = await api(`/api/v1/incidents/${full.id}/downlink`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: dl.value, actor: 'dispatcher' }),
+      });
+      log(`downlink queued (${r.chars} chars)`);
+    } catch (e) { log('DOWNLINK REFUSED: ' + e.message); }
+  };
 }
 
 async function refresh() {
   const data = await api('/api/v1/incidents');
-  incidents = data.incidents;
+  incidents = data.incidents.slice().sort((a, b) => (a.priority_level ?? 9) - (b.priority_level ?? 9));
   $('counts').textContent = `${incidents.length} incidents · ${data.ws_clients} panel(s)`;
   if (!selected && incidents.length) selected = incidents[0].id;
   renderList();
   renderDetail();
 }
 
-async function simulate(duress) {
-  try {
-    const body = duress
-      ? { duress: true, sos_code: 3, heart_rate: 128, spo2: 93, battery_pct: 61 }
-      : { sos_code: 2, heart_rate: 118, spo2: 88, battery_pct: 22 };
-    const r = await api('/api/v1/dev/simulate', {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
-    });
-    log(`${r.incident_id} created · ${r.packet_bytes}B envelope · ${r.triage.priority} ${r.triage.triage_category}`);
-    selected = r.incident_id;
-    await refresh();
-  } catch (e) { log('SIMULATE FAILED: ' + e.message); }
+async function post(path, body) {
+  return api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 }
 
-$('btnSim').onclick = () => simulate(false);
-$('btnSimDuress').onclick = () => simulate(true);
+async function gesture(presses) {
+  try {
+    const r = await post('/api/v1/dev/wristband', { presses, held_ms: 0 });
+    log(`${r.gesture} · P${r.triage.priority_level} ${r.triage.triage_category} · ${r.packet_bytes}B · haptic ${r.haptic.length} step(s)${r.covert.silent ? ' · COVERT' : ''}`);
+    selected = r.incident_id;
+    await refresh();
+  } catch (e) { log('GESTURE FAILED: ' + e.message); }
+}
+
+$('btnMedical').onclick = () => gesture(3);
+$('btnHostile').onclick = () => gesture(5);
+$('btnMesh').onclick = async () => {
+  try {
+    const r = await post('/api/v1/dev/mesh', { hops: 2 });
+    log(`mesh delivered in ${r.hops} hops · ${r.incident_id} · P${r.triage.priority_level}`);
+    selected = r.incident_id; await refresh();
+  } catch (e) { log('MESH FAILED: ' + e.message); }
+};
+$('btnSim').onclick = async () => {
+  try {
+    const r = await post('/api/v1/dev/simulate', {});
+    log(`beacon ${r.incident_id} · P${r.triage.priority_level} ${r.triage.triage_category} · ${r.packet_bytes}B`);
+    selected = r.incident_id; await refresh();
+  } catch (e) { log('SIMULATE FAILED: ' + e.message); }
+};
 
 let ws;
 function connect() {
@@ -297,7 +309,8 @@ function connect() {
   ws.onmessage = (ev) => {
     try {
       const msg = JSON.parse(ev.data);
-      log(msg.type + (msg.incident_id ? ' · ' + msg.incident_id : '') + (msg.state ? ' → ' + msg.state : ''));
+      log(msg.type + (msg.incident_id ? ' · ' + msg.incident_id : '') + (msg.state ? ' → ' + msg.state : '') +
+          (msg.changes ? ' · re-ranked ' + msg.changes.map((c) => c.incident_id + ' P' + c.to).join(', ') : ''));
       refresh();
     } catch { /* ignore */ }
   };
