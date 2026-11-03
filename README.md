@@ -148,3 +148,26 @@ Covert mode asks for RF burst randomisation to defeat direction finding, and log
 Both are implemented as **policy objects with a seedable clock** — auditable, with **no RF
 code in this repo**. They need legal/export-control review before shipping. Covert incidents
 also cannot receive a plaintext downlink at all; the API refuses it.
+
+## Model pass (optional)
+
+Rules run first and act as a safety floor. A model may then improve the write-up,
+but it can never lower urgency, unlock a covert incident, or name an asset that is
+not in the supplied 25 km context — violations are rejected and the rule plan is
+restored.
+
+```bash
+AEGIS_LLM=1
+AEGIS_LLM_PROVIDER=openai        # or ollama
+AEGIS_LLM_URL=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+AEGIS_LLM_MODEL=gemini-3.5-flash-lite
+AEGIS_LLM_FALLBACK=gemini-flash-lite-latest,gemini-3.1-flash-lite
+AEGIS_LLM_KEY=...                # server-side only, never sent to the browser
+```
+
+Verified against Gemini's OpenAI-compatible endpoint: `gemini-3.5-flash-lite`
+returns schema-valid JSON in roughly 600 ms. During testing `gemma-4-31b-it`
+returned a server-side 500 and `gemini-3.1-flash-lite` was rate-limited (503), so
+both are wired as fallbacks instead of defaults. Transient 429/5xx responses are
+retried once, then the chain moves on. With no endpoint configured the service is
+fully deterministic and the panel header reads RULES ONLY.
