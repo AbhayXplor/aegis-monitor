@@ -16,6 +16,7 @@ import { encode, decode, validatePacket, MAX_PACKET_BYTES } from './proto.mjs';
 import { applyTransition, STATES, TRANSITIONS } from './state.mjs';
 import { geoContext } from './geo.mjs';
 import { triage, reRank, llmStatus } from './triage.mjs';
+import { enhance, llmConfig } from './llm.mjs';
 import { classifyGesture, gestureToBeacon, hapticPattern, covertPolicy, pollPPG, meshRelay, MESH_MAX_HOPS, GESTURE } from './wristband.mjs';
 import { attachWS, broadcast, clientCount } from './ws.mjs';
 
@@ -94,18 +95,29 @@ async function ingest(envelope, { source = 'SAT_INGEST', deviceHint = null, mesh
   broadcast({ type: 'INCIDENT_CREATED', incident: summary(inc) });
 
   const context = await geoContext(inc.position.lat, inc.position.lon, 25);
-  const { triage: t, grounding, routes } = await triage({ incident: inc, context });
+  const { triage: ruleTriage, grounding, routes } = await triage({ incident: inc, context });
+
+  // Optional model pass. Rules are always computed first and act as a floor.
+  let t = ruleTriage;
+  let model = { used: 'rules', reason: 'llm disabled' };
+  if (llmConfig().enabled) {
+    const r = await enhance({ incident: inc, ruleTriage, grounding, context });
+    t = r.triage;
+    model = { used: r.used, reason: r.reason, notes: r.notes || [] };
+  }
+
   inc.context = context;
   inc.triage = t;
   inc.grounding = grounding;
   inc.routes = routes;
+  inc.model = model;
 
-  const moved = applyTransition(inc, 'AI_TRIAGED', 'system', `triage P${t.priority_level} ${t.triage_category}`);
+  const moved = applyTransition(inc, 'AI_TRIAGED', 'system', `triage P${t.priority_level} ${t.triage_category} via ${model.used}`);
   if (!moved.ok) audit(inc, inc.state, 'AI_TRIAGED', 'system', 'triage recorded without transition: ' + moved.reason);
 
   // Biometric re-ranking across every active incident.
   const changes = reRank([...incidents.values()]);
-  broadcast({ type: 'INCIDENT_TRIAGED', incident_id: inc.id, triage: t, state: inc.state });
+  broadcast({ type: 'INCIDENT_TRIAGED', incident_id: inc.id, triage: t, state: inc.state, model });
   if (changes.length) broadcast({ type: 'INCIDENT_RERANKED', changes });
   return inc;
 }
