@@ -1,0 +1,318 @@
+{
+ "version": "kb-1",
+ "provenance": "Original paraphrased summaries of publicly known TCCC, WHO emergency-triage and wilderness-EMS principles. Not verbatim guideline text. Decision support only; requires clinical review and sign-off before operational use.",
+ "chunks": [
+  {
+   "id": "TCCC-CUF-01",
+   "source": "TCCC",
+   "topic": "CARE_UNDER_FIRE",
+   "keywords": "gunfire hostile attack shooting cover under fire combat extraction",
+   "text": "Under direct threat the first priority is to get out of the line of fire and take cover. The only medical action worth doing while still exposed is rapid control of life-threatening limb bleeding with a tourniquet; everything else waits until the casualty is behind cover.",
+   "reply": "TAKE COVER FIRST. STAY LOW. TOURNIQUET ONLY IF A LIMB IS BLEEDING HEAVILY."
+  },
+  {
+   "id": "TCCC-MH-01",
+   "source": "TCCC",
+   "topic": "HEMORRHAGE",
+   "keywords": "bleeding hemorrhage haemorrhage limb leg arm tourniquet gunshot wound trauma amputation blood",
+   "text": "For life-threatening bleeding from an arm or leg, apply a tourniquet high and tight above the wound, over clothing if needed. Tighten until the bleeding stops, note the time, and add a second tourniquet beside the first if bleeding continues. Do not loosen it in the field.",
+   "reply": "TOURNIQUET HIGH AND TIGHT ABOVE WOUND. NOTE TIME. DO NOT LOOSEN IT."
+  },
+  {
+   "id": "TCCC-MH-02",
+   "source": "TCCC",
+   "topic": "HEMORRHAGE",
+   "keywords": "junctional groin armpit neck wound packing gauze pressure bleeding cannot tourniquet",
+   "text": "Bleeding where a tourniquet cannot be placed, such as groin, armpit or neck, is controlled by packing the wound with gauze or clean cloth and holding firm direct pressure for at least three minutes, then securing a pressure dressing.",
+   "reply": "PACK WOUND WITH CLEAN CLOTH. PRESS HARD FOR 3 MIN. DO NOT RELEASE."
+  },
+  {
+   "id": "TCCC-AW-01",
+   "source": "TCCC",
+   "topic": "AIRWAY",
+   "keywords": "airway breathing unconscious facial injury jaw choke obstruct recovery position",
+   "text": "A conscious casualty with facial injury should sit up and lean forward so blood and fluid drain. An unconscious casualty who is breathing should be placed in the recovery position, with the jaw lifted forward to keep the airway open.",
+   "reply": "IF AWAKE SIT UP AND LEAN FORWARD. IF UNCONSCIOUS ROLL ONTO SIDE. KEEP AIRWAY OPEN."
+  },
+  {
+   "id": "TCCC-RESP-01",
+   "source": "TCCC",
+   "topic": "RESPIRATION",
+   "keywords": "chest wound sucking open pneumothorax penetrating chest seal breathing lung",
+   "text": "An open chest wound is covered with an occlusive seal, ideally vented, or plastic taped on three sides so air can escape but not enter. The casualty is kept upright or in a position of comfort and watched for worsening breathlessness.",
+   "reply": "COVER CHEST WOUND WITH PLASTIC TAPED ON 3 SIDES. SIT UPRIGHT."
+  },
+  {
+   "id": "TCCC-RESP-02",
+   "source": "TCCC",
+   "topic": "RESPIRATION",
+   "keywords": "tension pneumothorax breathless distress worsening chest trauma oxygen spo2 falling hypoxia",
+   "text": "Progressive breathing difficulty after chest trauma, with falling oxygen saturation, suggests a tension pneumothorax. This needs decompression by a trained provider and urgent evacuation; until then keep the casualty upright and still.",
+   "reply": "STAY UPRIGHT. DO NOT LIE FLAT. SIGNAL IF BREATHING GETS WORSE."
+  },
+  {
+   "id": "TCCC-CIRC-01",
+   "source": "TCCC",
+   "topic": "SHOCK",
+   "keywords": "shock pale cold clammy fast weak pulse tachycardia blood loss confusion hemorrhagic circulation",
+   "text": "Pale, cold, clammy skin, a fast weak pulse and confusion indicate shock from blood loss. Stop all external bleeding, keep the casualty lying flat and warm, and prioritise evacuation; fluids and drugs are for trained providers only.",
+   "reply": "LIE FLAT. KEEP WARM. STOP ALL BLEEDING. HELP IS BEING ROUTED."
+  },
+  {
+   "id": "TCCC-HYPO-01",
+   "source": "TCCC",
+   "topic": "HYPOTHERMIA",
+   "keywords": "cold hypothermia wet clothes insulate blanket ground heat loss trauma casualty warm",
+   "text": "Injured casualties lose heat quickly and cold worsens bleeding. Remove wet clothing where possible, insulate the casualty from the ground, cover the head and wrap in any available blanket or dry layers.",
+   "reply": "GET OFF COLD GROUND. REMOVE WET CLOTHES. WRAP IN ANY DRY LAYERS."
+  },
+  {
+   "id": "TCCC-HEAD-01",
+   "source": "TCCC",
+   "topic": "HEAD_INJURY",
+   "keywords": "head injury concussion unconscious vomiting confusion brain skull neck drowsy",
+   "text": "After a head injury watch level of consciousness. Prevent low oxygen and low blood pressure, keep the neck still unless there is danger, and treat worsening drowsiness, repeated vomiting or confusion as an emergency.",
+   "reply": "KEEP NECK STILL UNLESS IN DANGER. STAY AWAKE. TELL RESCUERS IF YOU VOMIT."
+  },
+  {
+   "id": "TCCC-EYE-01",
+   "source": "TCCC",
+   "topic": "EYE_INJURY",
+   "keywords": "eye injury penetrating globe shield vision blast splinter",
+   "text": "For a penetrating eye injury cover the eye with a rigid shield such as a cup, apply no pressure to the globe, and do not remove any embedded object.",
+   "reply": "COVER EYE WITH A CUP OR SHIELD. NO PRESSURE. LEAVE OBJECT IN PLACE."
+  },
+  {
+   "id": "TCCC-FRAC-01",
+   "source": "TCCC",
+   "topic": "FRACTURE",
+   "keywords": "fracture broken bone splint limb deformity swelling open fracture",
+   "text": "Splint a suspected fracture in the position found, check feeling and circulation beyond the splint, and cover any open wound with a clean dressing. Do not try to realign the limb.",
+   "reply": "SPLINT LIMB AS FOUND. DO NOT REALIGN. COVER ANY OPEN WOUND."
+  },
+  {
+   "id": "TCCC-BURN-01",
+   "source": "TCCC",
+   "topic": "BURN",
+   "keywords": "burn fire blast flame skin blister dressing hypothermia",
+   "text": "Cover burns with a clean dry dressing and prevent the casualty from getting cold. Large burns or burns to the face, hands or airway need urgent evacuation.",
+   "reply": "COVER BURN WITH CLEAN DRY CLOTH. KEEP WARM. SIP WATER IF AWAKE."
+  },
+  {
+   "id": "TCCC-BLAST-01",
+   "source": "TCCC",
+   "topic": "BLAST",
+   "keywords": "blast explosion shockwave ears lungs abdomen hidden injury shrapnel fragment",
+   "text": "Blast exposure can cause lung, ear, bowel and brain injury that is not obvious at first. Casualties who walk away still need evacuation and monitoring for breathing difficulty or abdominal pain.",
+   "reply": "STAY STILL EVEN IF YOU FEEL FINE. REPORT BREATHING OR BELLY PAIN."
+  },
+  {
+   "id": "TCCC-ABD-01",
+   "source": "TCCC",
+   "topic": "ABDOMINAL_WOUND",
+   "keywords": "abdomen belly gunshot stab bowel protruding intestines penetrating",
+   "text": "For a penetrating abdominal wound do not push protruding bowel back. Cover it with a moist clean dressing, keep the casualty still with knees supported, and give nothing by mouth.",
+   "reply": "COVER WOUND LOOSELY. DO NOT PUSH ANYTHING BACK IN. NOTHING BY MOUTH."
+  },
+  {
+   "id": "TCCC-EVAC-01",
+   "source": "TCCC",
+   "topic": "EVACUATION",
+   "keywords": "evacuation priority medevac uncontrolled bleeding airway altered consciousness urgent transport",
+   "text": "Casualties with a compromised airway, uncontrolled bleeding or reduced consciousness are evacuated first. Do not delay transport of these casualties for lower-priority care.",
+   "reply": "KEEP BEACON ON. KEEP STILL. EVACUATION IS BEING ROUTED."
+  },
+  {
+   "id": "WHO-TRI-01",
+   "source": "WHO",
+   "topic": "EMERGENCY_TRIAGE",
+   "keywords": "emergency signs triage airway breathing circulation coma convulsion severe dehydration priority",
+   "text": "Emergency triage looks first for emergency signs: airway obstruction, severe breathing difficulty, signs of shock, coma or convulsion, and severe dehydration. Any emergency sign means immediate treatment and urgent evacuation ahead of all other casualties.",
+   "reply": "STAY AWAKE. KEEP AIRWAY CLEAR. REPORT ANY CHANGE IN BREATHING OR BLEEDING."
+  },
+  {
+   "id": "WHO-HYPOX-01",
+   "source": "WHO",
+   "topic": "HYPOXIA",
+   "keywords": "hypoxia low oxygen spo2 below 90 saturation breathless respiratory distress lung chest critical",
+   "text": "Oxygen saturation below 90 percent at rest is a critical finding. Sit the casualty upright, loosen tight clothing, minimise exertion, give oxygen if available, and evacuate urgently.",
+   "reply": "SIT UPRIGHT. LOOSEN TIGHT CLOTHING. BREATHE SLOWLY. DO NOT EXERT YOURSELF."
+  },
+  {
+   "id": "WHO-TACHY-01",
+   "source": "WHO",
+   "topic": "TACHYCARDIA",
+   "keywords": "heart rate above 130 tachycardia fast pulse shock pain fever bleeding",
+   "text": "A resting heart rate above 130 beats per minute is dangerous. Look for blood loss, severe pain, dehydration, fever or heart rhythm problems, treat the cause, and escalate to urgent evacuation.",
+   "reply": "REST SITTING OR LYING. CHECK YOURSELF FOR BLEEDING. KEEP BEACON ON."
+  },
+  {
+   "id": "WHO-BRADY-01",
+   "source": "WHO",
+   "topic": "BRADYCARDIA",
+   "keywords": "heart rate below 45 bradycardia slow pulse cold cardiac collapse head injury faint",
+   "text": "A resting heart rate below 45 beats per minute can follow severe cold, heart disease, head injury or poisoning. Lay the casualty down, keep them warm, avoid sudden standing, and evacuate urgently.",
+   "reply": "LIE DOWN. KEEP WARM. DO NOT STAND UP SUDDENLY. KEEP BEACON ON."
+  },
+  {
+   "id": "WHO-DEHYD-01",
+   "source": "WHO",
+   "topic": "DEHYDRATION",
+   "keywords": "dehydration thirst water diarrhoea vomiting oral rehydration dry mouth dizzy heat",
+   "text": "Mild dehydration is treated with frequent small sips of clean water or oral rehydration solution. Inability to drink, drowsiness or sunken eyes is severe dehydration and needs urgent evacuation.",
+   "reply": "SIP WATER OR ORS SLOWLY AND OFTEN. REST IN SHADE."
+  },
+  {
+   "id": "WHO-OB-01",
+   "source": "WHO",
+   "topic": "OBSTETRIC",
+   "keywords": "childbirth labour labor delivery birth pregnant contractions baby waters",
+   "text": "Active labour without a skilled attendant is an emergency. Prepare a clean delivery surface, support the baby as it emerges, never pull the cord, dry the baby and keep it skin to skin and warm, and request evacuation immediately.",
+   "reply": "LIE ON SIDE ON CLEAN CLOTH. DO NOT PULL THE CORD. KEEP BABY DRY AND WARM."
+  },
+  {
+   "id": "WHO-OB-02",
+   "source": "WHO",
+   "topic": "OBSTETRIC",
+   "keywords": "postpartum haemorrhage bleeding after birth uterus massage placenta",
+   "text": "Heavy bleeding after delivery is controlled by firm massage of the lower abdomen to make the womb contract, putting the baby to the breast, emptying the bladder, and urgent evacuation.",
+   "reply": "MASSAGE LOWER BELLY FIRMLY. PUT BABY TO BREAST. KEEP WARM."
+  },
+  {
+   "id": "WHO-PAED-01",
+   "source": "WHO",
+   "topic": "PAEDIATRIC",
+   "keywords": "child infant baby pediatric paediatric warm small feeds deteriorate quickly",
+   "text": "Children deteriorate quickly. Keep them warm and calm, give small frequent sips if conscious, and escalate early rather than waiting for clear signs of decline.",
+   "reply": "KEEP CHILD WARM AND CALM. GIVE SMALL SIPS IF AWAKE."
+  },
+  {
+   "id": "WHO-SEIZ-01",
+   "source": "WHO",
+   "topic": "CONVULSION",
+   "keywords": "seizure convulsion fit shaking epilepsy unconscious",
+   "text": "During a convulsion protect the casualty from injury, do not restrain them or put anything in the mouth, and place them in the recovery position once the shaking stops.",
+   "reply": "CLEAR SPACE AROUND YOU. DO NOT HOLD DOWN. ROLL ONTO SIDE WHEN STILL."
+  },
+  {
+   "id": "WEMS-CRUSH-01",
+   "source": "WEMS",
+   "topic": "CRUSH",
+   "keywords": "crush entrapment trapped rubble collapse earthquake limb compartment rhabdomyolysis",
+   "text": "Prolonged crush or entrapment can release toxins when the pressure is lifted. Evacuation is time-critical even if the casualty feels well, and release should be done by a medical team, not improvised.",
+   "reply": "DO NOT TRY TO FREE A CRUSHED LIMB YOURSELF. TELL RESCUERS HOW LONG YOU HAVE BEEN TRAPPED."
+  },
+  {
+   "id": "WEMS-ENTRAP-01",
+   "source": "WEMS",
+   "topic": "ENTRAPMENT",
+   "keywords": "rubble collapse buried trapped dust building earthquake signal tap pipe conserve",
+   "text": "When trapped in rubble, cover the nose and mouth with cloth against dust, avoid shouting which wastes air and breath, and make a repeated tapping noise on a pipe or wall so rescuers can locate you. Conserve battery.",
+   "reply": "COVER MOUTH WITH CLOTH. TAP ON A PIPE OR WALL. SAVE VOICE AND BATTERY."
+  },
+  {
+   "id": "WEMS-HYPO-01",
+   "source": "WEMS",
+   "topic": "COLD_EXPOSURE",
+   "keywords": "hypothermia cold exposure shivering confusion wet freezing snow alpine mountain",
+   "text": "Treat cold exposure by getting out of wind and wet, adding insulation above and below the casualty, handling them gently and keeping them horizontal if severe, and giving warm sweet drinks only if fully alert. Do not rub the skin.",
+   "reply": "GET OUT OF WIND AND WET. INSULATE ABOVE AND BELOW. NO RUBBING."
+  },
+  {
+   "id": "WEMS-HEAT-01",
+   "source": "WEMS",
+   "topic": "HEAT_ILLNESS",
+   "keywords": "heat stroke exhaustion hot desert sun dehydration confusion collapse cooling",
+   "text": "Heat illness is treated by moving to shade, removing excess clothing, wetting the skin and fanning, and giving cool fluids only if the casualty is alert. Confusion or collapse in heat is an emergency.",
+   "reply": "GET INTO SHADE. WET YOUR SKIN AND FAN IT. SIP WATER IF AWAKE."
+  },
+  {
+   "id": "WEMS-BURN-01",
+   "source": "WEMS",
+   "topic": "BURN",
+   "keywords": "burn scald cool water twenty minutes dressing ice ointment",
+   "text": "Cool a burn with clean running water for twenty minutes, then cover it with a clean dry non-stick dressing. Never apply ice or ointments.",
+   "reply": "COOL BURN WITH CLEAN WATER FOR 20 MIN. COVER CLEAN AND DRY. NO ICE."
+  },
+  {
+   "id": "WEMS-SNAKE-01",
+   "source": "WEMS",
+   "topic": "ENVENOMATION",
+   "keywords": "snakebite snake bite venom spider scorpion sting limb swelling",
+   "text": "For a snakebite keep the casualty calm and still, keep the bitten limb immobilised at about heart level, remove rings and tight items, and note the time. Do not cut, suck, ice or apply a tourniquet.",
+   "reply": "KEEP BITTEN LIMB STILL AT HEART LEVEL. NO CUTTING, SUCKING OR TOURNIQUET."
+  },
+  {
+   "id": "WEMS-FLOOD-01",
+   "source": "WEMS",
+   "topic": "FLOOD",
+   "keywords": "flood water drowning current stranded wadi river rising high ground swept",
+   "text": "Move to high ground and stay out of moving water; even shallow fast water can knock an adult down and vehicles are swept away. Wet casualties must be dried and insulated to avoid cold injury.",
+   "reply": "MOVE TO HIGH GROUND. DO NOT WALK OR DRIVE THROUGH MOVING WATER."
+  },
+  {
+   "id": "WEMS-FIRE-01",
+   "source": "WEMS",
+   "topic": "WILDFIRE",
+   "keywords": "wildfire fire smoke inhalation burn forest evacuate upwind",
+   "text": "In a wildfire move away from the fire front toward bare or already burned ground or upwind, cover the nose and mouth with a damp cloth, and avoid canyons and uphill slopes that funnel flames.",
+   "reply": "MOVE UPWIND TO BARE OR BURNED GROUND. COVER MOUTH WITH A DAMP CLOTH."
+  },
+  {
+   "id": "WEMS-ALT-01",
+   "source": "WEMS",
+   "topic": "ALTITUDE",
+   "keywords": "altitude sickness mountain headache vomiting unsteady breathless oedema",
+   "text": "Headache with nausea, unsteadiness or breathlessness at altitude is altitude illness. Stop ascending, rest, and descend if symptoms worsen or the casualty is confused or very breathless.",
+   "reply": "STOP CLIMBING. REST. DESCEND IF YOU ARE ABLE AND SYMPTOMS WORSEN."
+  },
+  {
+   "id": "WEMS-SPINE-01",
+   "source": "WEMS",
+   "topic": "SPINAL",
+   "keywords": "spine back neck fall injury numb tingling paralysis movement",
+   "text": "With a suspected spinal injury minimise movement of the neck and back, and move the casualty only if staying put is more dangerous.",
+   "reply": "DO NOT MOVE NECK OR BACK UNLESS IN DANGER. STAY STILL."
+  },
+  {
+   "id": "WEMS-SIGNAL-01",
+   "source": "WEMS",
+   "topic": "SIGNALLING",
+   "keywords": "signal visible whistle mirror smoke bright cloth stay put lost search rescue",
+   "text": "Stay in one place and make yourself findable: signals in groups of three (whistle blasts, mirror flashes or flashlight), bright cloth in an open area, and shelter close to your last known position.",
+   "reply": "STAY PUT. SIGNAL IN GROUPS OF THREE. LAY BRIGHT CLOTH IN THE OPEN."
+  },
+  {
+   "id": "WEMS-WATER-01",
+   "source": "WEMS",
+   "topic": "SUPPLY",
+   "keywords": "water supply drop ration thirst shade survivor isolated food electrolytes",
+   "text": "For isolated survivors without water: ration sips rather than rationing the effort, rest in shade through the heat of the day, and prioritise a supply drop of water and electrolytes ahead of food.",
+   "reply": "SIP WATER SLOWLY. REST IN SHADE. SUPPLY DROP IS BEING ARRANGED."
+  },
+  {
+   "id": "WEMS-LOST-01",
+   "source": "WEMS",
+   "topic": "SEARCH_RESCUE",
+   "keywords": "unknown unspecified lost search rescue contact confirm location welfare movement battery",
+   "text": "When the situation is unknown, treat it as search and rescue: establish contact, confirm location and condition, and do not assume the casualty can move.",
+   "reply": "STAY WHERE YOU ARE. KEEP BEACON ON. SAVE DEVICE BATTERY."
+  },
+  {
+   "id": "SEC-HOSTILE-01",
+   "source": "AEGIS",
+   "topic": "HOSTILE",
+   "keywords": "hostile warzone combat extraction contact enemy armed threat concealment quiet silent",
+   "text": "In a hostile environment stay in hard cover, keep a low signature (no light, no noise), do not move unless the new position is clearly safer, and do not transmit more than needed. Extraction is planned off-air.",
+   "reply": "STAY IN HARD COVER. NO LIGHT OR NOISE. DO NOT MOVE UNLESS SAFER."
+  },
+  {
+   "id": "SEC-DURESS-01",
+   "source": "AEGIS",
+   "topic": "DURESS",
+   "keywords": "duress hostage captured covert coerced silent captor",
+   "text": "In a covert duress scenario transmissions are minimal and ambiguous. Extraction planning happens off-air and never in the downlink; no plaintext message may be sent to the device.",
+   "reply": "HAPTIC_ACK_ONLY"
+  }
+ ]
+}

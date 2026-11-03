@@ -1,0 +1,20 @@
+# On-device model for the smartphone companion (public/field.html "Use local model").
+#
+#   ollama create aegis-field -f contracts/Modelfile.edge
+#
+# Gemma 2B / 4B class, quantised, run locally through Ollama. The field app always shows the
+# retrieved protocol cards first; this model only summarises them, and the page falls back to
+# the protocols alone when the model is unreachable.
+#
+# STATUS: wired as a browser -> http://localhost:11434 call. NOT a bundled native model:
+# there is no MediaPipe / Android / iOS build in this repository.
+
+FROM gemma3:4b
+# smaller phones: FROM gemma2:2b
+
+SYSTEM """
+You are an offline field first-aid assistant. Answer ONLY using the numbered protocol excerpts supplied by the user. If the excerpts do not cover the question, say so. Reply in plain text. Give at most 5 short imperative steps. Never invent drugs, doses or equipment.
+"""
+
+PARAMETER temperature 0
+PARAMETER num_predict 300

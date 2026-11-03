@@ -7,8 +7,13 @@
 # The SYSTEM block below is the brief §3 prompt, verbatim. Do not edit it without
 # updating the brief; tests assert the engine's rules match it.
 #
-# STATUS: the service does not call Ollama in this build. AEGIS_LLM=1 plus
-# AEGIS_LLM_URL enables the seam; nothing is verified against a live model here.
+# STATUS: src/llm.mjs reads the SYSTEM block below at request time (one copy only) and calls
+# Ollama Cloud (https://ollama.com/api/chat, Bearer key) by default, a local Ollama, or any
+# OpenAI-compatible endpoint. Enable with AEGIS_LLM=1 (see .env.example). The model pass is
+# optional and runs AFTER the rules: it can never lower urgency, unlock a covert/silent
+# incident, name an asset that is not in the supplied slice, or tell a dispatcher to transmit
+# to a covert device. The "gemma4" tag is the brief's name; confirm the exact tag your
+# Ollama account serves.
 
 FROM gemma4
 

@@ -22,21 +22,24 @@ const KEYS = ['incident_id', 'priority_level', 'triage_category', 'physiological
   'hazard_assessment', 'deconflicted_route_plan', 'dispatcher_checklist', 'user_satellite_reply'];
 const TRANSIENT = new Set([429, 500, 502, 503, 504]);
 
-export function llmConfig() {
-  const url = process.env.AEGIS_LLM_URL || '';
-  const primary = process.env.AEGIS_LLM_MODEL || 'gemma4';
-  const fallbacks = (process.env.AEGIS_LLM_FALLBACK || '')
+export function llmConfig(env = process.env) {
+  const provider = (env.AEGIS_LLM_PROVIDER || 'ollama').toLowerCase();
+  // Ollama Cloud is the brief's target. A local Ollama (http://localhost:11434/api/chat)
+  // or any OpenAI-compatible endpoint can be selected with AEGIS_LLM_URL / _PROVIDER.
+  const url = env.AEGIS_LLM_URL || (provider === 'ollama' ? 'https://ollama.com/api/chat' : '');
+  const primary = env.AEGIS_LLM_MODEL || 'gemma4';
+  const fallbacks = (env.AEGIS_LLM_FALLBACK || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
   return {
-    enabled: process.env.AEGIS_LLM === '1' && !!url,
+    enabled: env.AEGIS_LLM === '1' && !!url,
     url,
-    provider: (process.env.AEGIS_LLM_PROVIDER || 'openai').toLowerCase(),
+    provider,
     model: primary,
     models: [primary, ...fallbacks.filter((m) => m !== primary)],
-    keyPresent: !!(process.env.AEGIS_LLM_KEY || process.env.OPENAI_API_KEY),
-    timeoutMs: Number(process.env.AEGIS_LLM_TIMEOUT_MS || 8000),
+    keyPresent: !!(env.AEGIS_LLM_KEY || env.OLLAMA_API_KEY || env.OPENAI_API_KEY),
+    timeoutMs: Number(env.AEGIS_LLM_TIMEOUT_MS || 12000),
   };
 }
 
@@ -67,7 +70,7 @@ function extractContent(cfg, body) {
 const stripFences = (s) => String(s).replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
 
 /** Apply hard floors the model is not allowed to override. */
-export function enforceFloors(modelTriage, { ruleTriage, context, incidentId }) {
+export function enforceFloors(modelTriage, { ruleTriage, context, incidentId, silentMode = false }) {
   const notes = [];
   const out = { ...modelTriage };
 
@@ -100,7 +103,7 @@ export function enforceFloors(modelTriage, { ruleTriage, context, incidentId }) 
   }
 
   // no invented assets: every "via X" must exist in the supplied context
-  const names = new Set((context?.hospitals || []).map((h) => h.name));
+  const names = new Set([...(context?.hospitals || []), ...(context?.assets || [])].map((x) => x.name));
   const plan = String(out.deconflicted_route_plan || '');
   const via = [...plan.matchAll(/via\s+([^().]+?)\s*(?:\(|\.|$)/gi)].map((m) => m[1].trim());
   const invented = via.filter((v) => !names.has(v));
@@ -111,13 +114,22 @@ export function enforceFloors(modelTriage, { ruleTriage, context, incidentId }) 
 
   // downlink discipline
   let reply = String(out.user_satellite_reply || '');
-  if (out.triage_category === 'HOSTAGE_COVERT') reply = 'HAPTIC_ACK_ONLY';
+  if (out.triage_category === 'HOSTAGE_COVERT' || silentMode) reply = 'HAPTIC_ACK_ONLY';
   reply = reply.replace(/[^\x20-\x7E]/g, '').slice(0, 160);
   if (!reply) {
     notes.push('empty reply, using rule value');
     reply = ruleTriage.user_satellite_reply;
   }
   out.user_satellite_reply = reply;
+
+  // a covert incident's checklist must never tell a dispatcher to transmit to the device
+  const covertNow = out.triage_category === 'HOSTAGE_COVERT' || silentMode;
+  if (covertNow && Array.isArray(out.dispatcher_checklist) &&
+      out.dispatcher_checklist.some((c) => /\b(send|transmit|text|sms|message|downlink)\b/i.test(String(c)) && !/\b(do not|don't|never|no|not)\b/i.test(String(c)))) {
+    notes.push('covert checklist told dispatcher to transmit: using rule checklist');
+    out.dispatcher_checklist = ruleTriage.dispatcher_checklist;
+  }
+  if (silentMode) out.user_satellite_reply = 'HAPTIC_ACK_ONLY';
 
   // checklist must be exactly three non-empty strings
   if (!Array.isArray(out.dispatcher_checklist) || out.dispatcher_checklist.length !== 3 ||
@@ -157,7 +169,7 @@ async function callModel(cfg, payload, model, headers, relaxed = false) {
   return res;
 }
 
-export async function enhance({ incident, ruleTriage, grounding, context }) {
+export async function enhance({ incident, ruleTriage, grounding, context, deconfliction }) {
   const cfg = llmConfig();
   if (!cfg.enabled) return { triage: ruleTriage, used: 'rules', reason: 'llm disabled', model: null };
 
@@ -169,15 +181,20 @@ export async function enhance({ incident, ruleTriage, grounding, context }) {
       position: incident.position,
       vitals: incident.vitals,
       duress_flag: !!incident.vitals?.duress_flag,
+      silent_mode: !!incident.silent_mode,
+      beacon_age_s: incident.age_s || 0,
+      packets_received: incident.history?.length || 1,
+      trend: incident.trend || null,
       received_at: incident.received_at,
     },
     geo_context_25km: context,
-    protocol_chunks: grounding.map((g) => ({ id: g.chunk_id, topic: g.topic, text: g.quote })),
+    route_options: deconfliction ? { recommended: deconfliction.recommended ? { mode: deconfliction.recommended.mode, asset: deconfliction.recommended.asset.name, eta_min: deconfliction.recommended.eta_min, approach: deconfliction.recommended.approach } : null, avoid: deconfliction.avoid } : null,
+    protocol_chunks: grounding.filter((g) => g.role !== 'environment').map((g) => ({ id: g.chunk_id, topic: g.topic, text: g.quote })),
     required_output_schema: KEYS,
   };
 
   const headers = { 'content-type': 'application/json' };
-  const key = process.env.AEGIS_LLM_KEY || process.env.OPENAI_API_KEY;
+  const key = process.env.AEGIS_LLM_KEY || process.env.OLLAMA_API_KEY || process.env.OPENAI_API_KEY;
   if (key) headers.authorization = `Bearer ${key}`;
 
   const failures = [];
@@ -217,7 +234,7 @@ export async function enhance({ incident, ruleTriage, grounding, context }) {
         break;
       }
 
-      const { triage, notes } = enforceFloors(parsed, { ruleTriage, context, incidentId: incident.id });
+      const { triage, notes } = enforceFloors(parsed, { ruleTriage, context, incidentId: incident.id, silentMode: !!incident.silent_mode });
       return { triage, used: 'llm', model, reason: notes.length ? notes.join('; ') : 'accepted', notes };
     }
   }

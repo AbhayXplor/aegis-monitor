@@ -1,273 +1,218 @@
-// AegisMonitor triage & dispatch engine.
+// AegisMonitor triage & dispatch engine (deterministic rules floor).
 //
-// Output schema is fixed by the brief §3:
-//   incident_id, priority_level (1-5), triage_category, physiological_status,
-//   hazard_assessment, deconflicted_route_plan, dispatcher_checklist,
-//   user_satellite_reply
+// Output schema is fixed by the brief §3 (eight keys, nothing else). Provenance
+// (RAG chunks, deconfliction detail) is returned beside it, never inside it.
 //
-// ZERO-HALLUCINATION: every clinical sentence is traceable to a LOCAL_KB chunk
-// (returned separately as `grounding`, which is provenance, not model output).
-// Every tactical sentence restates a field that exists in the supplied context.
-// With no context the engine says so; it never invents a landmark or hospital.
+// ZERO-HALLUCINATION: every clinical instruction comes from a retrieved KB chunk; every
+// tactical statement restates a field of the supplied 25 km context. With no context the
+// engine says so and makes no tactical claim.
 
-const KB = [
-  { id: 'TCCC-01', topic: 'TRAUMA', text: 'For life-threatening extremity bleeding apply a tourniquet high and tight on the limb, note the time, and do not loosen it in the field.' },
-  { id: 'TCCC-02', topic: 'TRAUMA', text: 'For junctional bleeding not controlled by direct pressure, pack the wound with haemostatic gauze and hold firm pressure.' },
-  { id: 'TCCC-03', topic: 'MEDEVAC', text: 'Casualties with a compromised airway or uncontrolled bleeding are evacuated first; do not delay transport for non-critical casualties.' },
-  { id: 'WHO-01', topic: 'MEDEVAC', text: 'Reduced consciousness, inability to drink, or severe dehydration require urgent evacuation rather than oral rehydration alone.' },
-  { id: 'WHO-02', topic: 'RESPIRATORY', text: 'Hypoxia with SpO2 below 90 percent at rest is a critical finding; keep the casualty still and evacuate.' },
-  { id: 'WEMS-01', topic: 'CRUSH', text: 'Suspected crush injury with prolonged entrapment risks rhabdomyolysis; evacuation is time-critical even if the casualty feels well.' },
-  { id: 'WEMS-02', topic: 'PAEDIATRIC', text: 'In children keep the casualty warm, give small frequent feeds if conscious, and escalate early because deterioration is rapid.' },
-  { id: 'WHO-03', topic: 'OBSTETRIC', text: 'Active labour with no skilled attendant present is an emergency: prepare a clean delivery surface and request evacuation immediately.' },
-  { id: 'WEMS-03', topic: 'BURN', text: 'Cool burns with clean water for twenty minutes, cover with a dry sterile dressing, and never apply ice or ointment.' },
-  { id: 'SEC-01', topic: 'HOSTAGE', text: 'In a covert duress scenario keep transmissions minimal and ambiguous; extraction planning happens off-air, never in the downlink.' },
-  { id: 'SUP-01', topic: 'SUPPLY', text: 'For isolated survivors without water, ration to small sips and prioritise a supply drop of water and electrolytes before food.' },
-  { id: 'SAR-01', topic: 'SAR', text: 'When the situation is unknown, treat as search and rescue: establish contact, confirm location, and avoid assuming the casualty can move.' },
-];
+import { SOS } from './proto.mjs';
+import { retrieve } from './rag.mjs';
+import { deconflict, planText } from './deconflict.mjs';
 
-const PRIORITY_RANGE = [1, 2, 3, 4, 5];
+export { bearingDeg, compass } from './geomath.mjs';
+export const PRIORITY_RANGE = [1, 2, 3, 4, 5];
 export const TRIAGE_CATEGORIES = ['MEDEVAC', 'COMBAT_EXTRACTION', 'HOSTAGE_COVERT', 'SAR', 'SUPPLY_DROP'];
 
-/* ---------------- rules ---------------- */
+const known = (n) => Number.isFinite(n) && n > 0;
 
-export function priorityLevel({ sos_code, vitals = {} }) {
-  if (vitals.duress_flag) return 1;
-  if (Number.isFinite(vitals.spo2) && vitals.spo2 > 0 && vitals.spo2 < 90) return 1;
-  if (Number.isFinite(vitals.heart_rate) && (vitals.heart_rate > 130 || (vitals.heart_rate > 0 && vitals.heart_rate < 45))) return 1;
-  if (sos_code === 5) return 5;                                  // water / supply
-  if (sos_code === 4) return 4;                                  // evacuation request
-  if ([1, 2, 6].includes(sos_code)) {                            // medical, trauma, childbirth
-    if ((vitals.spo2 > 0 && vitals.spo2 < 94) || vitals.heart_rate > 110) return 2;
-    return 2;
+/* ---------------- trend ---------------- */
+
+// ENGINEERING DEFAULTS, not clinically validated: who signs off is an open question.
+export const TREND = { SPO2_DROP: 3, HR_RISE: 20, HR_RISE_MIN: 100, HR_COLLAPSE_FROM: 80, HR_COLLAPSE_TO: 60, HR_COLLAPSE_DROP: 25, WINDOW_S: 30 * 60 };
+
+/** Compare the two newest samples (device time). history: [{ts, heart_rate, spo2}] */
+export function trendOf(history = []) {
+  if (history.length < 2) return { deteriorating: false, reasons: [] };
+  const a = history[history.length - 2];
+  const b = history[history.length - 1];
+  if (b.ts - a.ts > TREND.WINDOW_S || b.ts <= a.ts) return { deteriorating: false, reasons: [] };
+  const reasons = [];
+  if (known(a.spo2) && known(b.spo2) && b.spo2 - a.spo2 <= -TREND.SPO2_DROP) reasons.push(`SpO2 fell ${a.spo2}->${b.spo2}%`);
+  if (known(a.heart_rate) && known(b.heart_rate)) {
+    if (b.heart_rate - a.heart_rate >= TREND.HR_RISE && b.heart_rate > TREND.HR_RISE_MIN) reasons.push(`HR rose ${a.heart_rate}->${b.heart_rate} bpm`);
+    if (a.heart_rate >= TREND.HR_COLLAPSE_FROM && b.heart_rate < TREND.HR_COLLAPSE_TO && a.heart_rate - b.heart_rate >= TREND.HR_COLLAPSE_DROP) reasons.push(`HR fell sharply ${a.heart_rate}->${b.heart_rate} bpm`);
   }
-  if (Number.isFinite(vitals.battery_pct) && vitals.battery_pct < 15) return 3;
-  return 3;                                                      // unknown / welfare
+  return { deteriorating: reasons.length > 0, reasons };
 }
+
+/* ---------------- priority & category ---------------- */
+
+/**
+ * Priority 1-5 with the reasons for it.
+ * `floor` is the most urgent priority this incident has already had: urgency never
+ * relaxes on its own, a dispatcher must lower it.
+ */
+export function assess({ sos_code, vitals = {}, trend = { deteriorating: false, reasons: [] }, floor = null, override = null }) {
+  const reasons = [];
+  let p;
+  if (vitals.duress_flag) {
+    p = 1;
+    reasons.push('duress flag set');
+  } else if (known(vitals.spo2) && vitals.spo2 < 90) {
+    p = 1;
+    reasons.push(`SpO2 ${vitals.spo2}% < 90`);
+  } else if (known(vitals.heart_rate) && vitals.heart_rate > 130) {
+    p = 1;
+    reasons.push(`HR ${vitals.heart_rate} > 130`);
+  } else if (known(vitals.heart_rate) && vitals.heart_rate < 45) {
+    p = 1;
+    reasons.push(`HR ${vitals.heart_rate} < 45`);
+  } else if (sos_code === SOS.WATER) p = 5;
+  else if (sos_code === SOS.EVACUATION) p = 4;
+  else if ([SOS.MEDICAL, SOS.TRAUMA, SOS.CHILDBIRTH, SOS.HOSTILE].includes(sos_code)) p = 2;
+  else p = 3;
+
+  if (p > 1 && trend.deteriorating) {
+    p -= 1;
+    reasons.push(`deteriorating: ${trend.reasons.join('; ')}`);
+  }
+  if (floor !== null && floor < p) {
+    p = floor;
+    reasons.push(`held at earlier urgency P${floor}`);
+  }
+  if (override !== null && override > p) {
+    // a dispatcher may lower urgency, but never below what the vitals themselves demand
+    const vitalsDemand = reasons.some((r) => /SpO2|HR|duress/.test(r) && !r.startsWith('held'));
+    if (!vitalsDemand) {
+      p = override;
+      reasons.push(`dispatcher set P${override}`);
+    }
+  }
+  return { priority: p, reasons };
+}
+
+export const priorityLevel = (input) => assess(input).priority;
 
 export function triageCategory({ sos_code, vitals = {} }) {
   if (vitals.duress_flag) return 'HOSTAGE_COVERT';
-  if (sos_code === 3) return 'COMBAT_EXTRACTION';
-  if (sos_code === 5) return 'SUPPLY_DROP';
-  if (sos_code === 0) return 'SAR';
+  if (sos_code === SOS.HOSTILE) return 'COMBAT_EXTRACTION';
+  if (sos_code === SOS.WATER) return 'SUPPLY_DROP';
+  if (sos_code === SOS.UNSPECIFIED) return 'SAR';
   return 'MEDEVAC';
 }
 
-/* ---------------- geometry ---------------- */
+/** Duress or device silent mode: the downlink may only ever be a haptic acknowledgement. */
+export const isCovert = (incident) => !!(incident.vitals?.duress_flag || incident.silent_mode);
 
-const toRad = (d) => (d * Math.PI) / 180;
-const toDeg = (r) => (r * 180) / Math.PI;
+/* ---------------- text builders ---------------- */
 
-export function bearingDeg(a, b) {
-  const y = Math.sin(toRad(b.lon - a.lon)) * Math.cos(toRad(b.lat));
-  const x = Math.cos(toRad(a.lat)) * Math.sin(toRad(b.lat)) - Math.sin(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.cos(toRad(b.lon - a.lon));
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+function suspectedState(vitals, sos_code) {
+  if (known(vitals.spo2) && vitals.spo2 < 90) return 'hypoxia: respiratory compromise (airway, chest injury or illness)';
+  if (known(vitals.heart_rate) && vitals.heart_rate > 130) return 'marked tachycardia: possible shock or haemorrhage, or severe pain';
+  if (known(vitals.heart_rate) && vitals.heart_rate < 45) return 'bradycardia: possible severe cold, cardiac cause or head injury';
+  if (known(vitals.heart_rate) && vitals.heart_rate > 100 && sos_code === SOS.TRAUMA) return 'possible compensated shock after trauma';
+  if (known(vitals.heart_rate) && known(vitals.spo2)) return 'vitals within alert thresholds; severity not visible to sensors';
+  return 'vitals unavailable (no PPG lock): condition unassessed';
 }
 
-const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-export const compass = (deg) => COMPASS[Math.round(deg / 22.5) % 16];
-
-function pointInPoly(lat, lon, poly) {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [yi, xi] = poly[i];
-    const [yj, xj] = poly[j];
-    if (yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+function physiologicalText({ vitals, sos_code, trend, age_s }) {
+  const hr = known(vitals.heart_rate) ? `${vitals.heart_rate} bpm` : 'unknown';
+  const sp = known(vitals.spo2) ? `${vitals.spo2}%` : 'unknown';
+  const batt = Number.isFinite(vitals.battery_pct) ? `${vitals.battery_pct}%` : 'unknown';
+  const parts = [`HR ${hr}, SpO2 ${sp}, battery ${batt}.`, `Suspected: ${suspectedState(vitals, sos_code)}.`];
+  if (trend.deteriorating) parts.push(`Trend: ${trend.reasons.join('; ')}.`);
+  if (vitals.duress_flag && !(known(vitals.spo2) && vitals.spo2 < 90) && !(known(vitals.heart_rate) && (vitals.heart_rate > 130 || vitals.heart_rate < 45))) {
+    parts.push('Covert duress: sensors show no physical emergency; risk is from captors.');
   }
-  return inside;
+  if (age_s > 600) parts.push(`Beacon is ${Math.round(age_s / 60)} min old.`);
+  return parts.join(' ').slice(0, 400);
 }
 
-export function segmentHitsHazard(a, b, poly, samples = 20) {
-  for (let i = 0; i <= samples; i++) {
-    const t = i / samples;
-    if (pointInPoly(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t, poly)) return true;
+function hazardText(context, age_s) {
+  if (!context) return 'CONTEXT_MISSING: no 25 km slice supplied. No tactical claim is made.';
+  const bits = (context.hazards || []).map((h) => `${h.kind} ${h.severity}: ${h.label} (${h.distance_km} km)`);
+  const w = context.weather;
+  if (w) {
+    bits.push(`weather ${w.temp_c}C wind ${w.wind_kt}kt${Number.isFinite(w.visibility_km) ? ` vis ${w.visibility_km}km` : ''}${w.dust ? ' dust' : ''}${w.storm ? ' THUNDERSTORM' : ''}`);
   }
-  return false;
+  if (!bits.length) bits.push('No hazards inside the 25 km slice');
+  const gaps = Object.entries(context.coverage || {}).filter(([, v]) => String(v).startsWith('unavailable')).map(([k]) => k);
+  if (gaps.length) bits.push(`NO DATA for: ${gaps.join(', ')}`);
+  if (age_s > 600) bits.push(`position is ${Math.round(age_s / 60)} min old`);
+  const text = bits.join('; ');
+  return text.length > 600 ? text.slice(0, 597) + '...' : text;
 }
 
-/* ---------------- grounding ---------------- */
+function checklistFor({ priority, category, covert, d, age_s, incident }) {
+  const r = d?.recommended;
+  const a = [];
+  if (covert) a.push('Do NOT send any unencrypted or text downlink; HAPTIC_ACK_ONLY is the only permitted message.');
+  else if (priority === 1) a.push(r ? `Task ${r.asset.name} now (${r.mode}, ETA ${r.eta_min} min); do not wait for a second packet.` : 'Task the nearest advanced asset immediately; no safe vector is confirmed yet.');
+  else if (priority <= 3) a.push('Confirm survivor location and condition with the next packet; assign an asset.');
+  else a.push('Queue for the next scheduled tasking; no immediate asset required.');
 
-// categories are the brief's vocabulary; KB topics are clinical topics
-const CATEGORY_TOPIC = {
-  MEDEVAC: 'MEDEVAC',
-  COMBAT_EXTRACTION: 'TRAUMA',
-  HOSTAGE_COVERT: 'HOSTAGE',
-  SAR: 'SAR',
-  SUPPLY_DROP: 'SUPPLY',
-};
+  const b = [];
+  if (!d) b.push('Obtain a 25 km context slice before tasking; escalate to a human medical decision-maker.');
+  else if (!r) b.push('No safe vector: hold, request hazard clearance or an alternative asset.');
+  else if (r.approach.kind === 'DOGLEG') b.push(`Use the dogleg: direct vector is blocked by ${r.blocked_by.join('; ')}.`);
+  else b.push(`Vector clear for ${r.mode} (HDG ${String(r.approach.heading_deg).padStart(3, '0')}); re-check hazards before departure.`);
 
-export function groundingFor(category, priority) {
-  const want = [CATEGORY_TOPIC[category], priority === 1 ? 'RESPIRATORY' : null].filter(Boolean);
-  const out = [];
-  for (const topic of want) {
-    const hit = KB.find((k) => k.topic === topic && !out.some((o) => o.chunk_id === k.id));
-    if (hit) out.push({ source: 'LOCAL_KB', chunk_id: hit.id, topic: hit.topic, quote: hit.text });
+  const c = [];
+  if (covert) c.push(r ? `Plan extraction off-air only (${r.mode}, ETA ${r.eta_min} min); confirm identity before approach.` : 'Plan extraction off-air only; confirm identity before approach.');
+  else if (d?.evac && category !== 'SUPPLY_DROP') c.push(`Pre-alert ${d.evac.hospital.name}${d.evac.hospital.status === 'UNVERIFIED' ? ' (operating status unverified: confirm by phone)' : ''}${d.evac.blocked ? '; evac leg is blocked, re-plan' : ''}.`);
+  else if (category === 'SUPPLY_DROP') c.push('Send supply-drop coordinates to the drone cell.');
+  else if (age_s > 600) c.push(`Beacon is ${Math.round(age_s / 60)} min old: assume the survivor has moved or worsened.`);
+  else c.push('Hold a downlink window in reserve and watch for the next packet.');
+
+  void incident;
+  return [a[0], b[0], c[0]];
+}
+
+function replyFor({ priority, covert, grounding, d, category, incident_sos }) {
+  if (covert) return 'HAPTIC_ACK_ONLY';
+  // Only chunks driven by the casualty's own facts speak to the casualty. For trauma and
+  // hostile contact, bleeding control (M in MARCH) outranks the respiratory finding.
+  const own = grounding.filter((g) => g.role !== 'environment');
+  const bleedingFirst = (category === 'MEDEVAC' && incident_sos === SOS.TRAUMA) || category === 'COMBAT_EXTRACTION';
+  const findings = own.filter((g) => g.role === 'finding');
+  const top = own.find((g) => g.role === 'primary');
+  // Lead with the top-ranked incident chunk (bleeding control for trauma), else the
+  // finding chunk; add the other one only if it fits. Lower-ranked chunks are noise.
+  const lead = bleedingFirst ? [top, findings[0]] : [findings[0], top];
+  const aid = lead.filter(Boolean).map((g) => g.reply).filter((x) => x && x !== 'HAPTIC_ACK_ONLY');
+  const r = d?.recommended;
+  const tail = r ? `RESCUE ETA ${r.eta_min} MIN.` : d ? 'RESCUE ROUTING, ETA TBD.' : '';
+  const beacon = aid.some((x) => /BEACON/.test(x)) ? '' : 'KEEP BEACON ON.';
+  const sets = [[`P${priority}.`, aid[0], aid[1], tail, beacon], [`P${priority}.`, aid[0], tail, beacon], [`P${priority}.`, aid[0], beacon], [`P${priority}.`, aid[0]]];
+  const ascii = (s) => s.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
+  for (const parts of sets) {
+    const text = ascii(parts.filter(Boolean).join(' '));
+    if (text.length <= 160) return text;
   }
-  if (!out.length) {
-    const fallback = KB.find((k) => k.topic === 'SAR');
-    out.push({ source: 'LOCAL_KB', chunk_id: fallback.id, topic: fallback.topic, quote: fallback.text });
-  }
-  return out;
-}
-
-/* ---------------- planning ---------------- */
-
-function transportMode(category, routes) {
-  if (category === 'SUPPLY_DROP') return 'DRONE';
-  const anyOpen = routes.some((r) => r.status === 'OPEN');
-  return anyOpen ? 'GROUND' : 'HELI';
-}
-
-function buildRoutePlan({ incident, context, routes, best, category }) {
-  const mode = transportMode(category, routes);
-  const survivor = { lat: incident.position.lat, lon: incident.position.lon };
-  let plan = mode;
-  if (best) {
-    const assetPos = { lat: best.lat, lon: best.lon };
-    const deg = Math.round(bearingDeg(assetPos, survivor));
-    plan += ` via ${best.asset} (ETA ${best.eta_min} min). APPROACH ${String(deg).padStart(3, '0')}° ${compass(deg)}.`;
-  } else {
-    plan += '. NO ASSET IN THE 25 km SLICE.';
-  }
-  const avoid = [];
-  for (const r of routes) for (const b of r.blocked_by) if (!avoid.includes(b)) avoid.push(b);
-  const unreferenced = (context.hazards || [])
-    .filter((h) => !avoid.some((a) => a.includes(h.kind)))
-    .map((h) => `${h.kind}: ${h.label}`);
-  const all = [...avoid, ...unreferenced];
-  plan += all.length ? ` AVOID ${all.join('; ')}.` : ' NO HAZARD ON THE VECTOR.';
-  return plan.replace(/\s+/g, ' ').trim();
-}
-
-function physiologicalText(vitals, priority) {
-  const hr = vitals.heart_rate ?? 'unknown';
-  const spo2 = vitals.spo2 ?? 'unknown';
-  const batt = vitals.battery_pct ?? 'unknown';
-  const state =
-    priority === 1 ? 'critical: immediate life threat' :
-    priority === 2 ? 'urgent: deteriorating physiology likely' :
-    priority === 3 ? 'stable but unverified' :
-    priority === 4 ? 'stable, movement required' : 'non-urgent supply need';
-  return `HR ${hr} bpm, SpO2 ${spo2}%, battery ${batt}%. ${state}.`;
-}
-
-function checklist({ priority, category, context, routes }) {
-  const items = [];
-  if (category === 'HOSTAGE_COVERT') {
-    items.push('Do not transmit an unencrypted downlink; device stays silent.');
-    items.push('Brief extraction team off-air only, confirm identity before approach.');
-  } else if (priority === 1) {
-    items.push('Task the nearest advanced asset immediately; do not wait for a second packet.');
-    items.push('Pre-alert receiving facility with vitals and suspected mechanism.');
-  } else if (priority <= 3) {
-    items.push('Confirm survivor location and accessibility with the next packet.');
-    items.push('Assign asset and hold a downlink window in reserve.');
-  } else {
-    items.push('Queue for the next scheduled tasking; no immediate asset required.');
-    items.push('Send supply-drop coordinates to the drone cell.');
-  }
-  const blocked = routes.filter((r) => r.status === 'BLOCKED').length;
-  items.push(blocked
-    ? `Re-route around ${blocked} blocked vector(s) listed in the hazard assessment.`
-    : 'Vector clear on the current 25 km slice; re-check before departure.');
-  return items.slice(0, 3);
-}
-
-function buildReply({ priority, category, best, blocked }) {
-  if (category === 'HOSTAGE_COVERT') return 'HAPTIC_ACK_ONLY';
-  const parts = [];
-  if (category === 'SUPPLY_DROP') parts.push('ACK SUPPLY. RATION WATER. DROP INBOUND.');
-  else if (priority === 1) parts.push(`ACK P${priority}. STAY STILL.`);
-  else parts.push(`ACK P${priority} ${category}.`);
-  if (best && !blocked) parts.push(`RESCUE ETA ${best.eta_min} MIN.`);
-  if (blocked) parts.push('ROUTE BLOCKED. SHELTER. CONSERVE BATTERY.');
-  parts.push('KEEP BEACON ON.');
-  const text = parts.join(' ').replace(/[^\x20-\x7E]/g, '');
-  return text.slice(0, 160);
+  return ascii(`P${priority}. ${category}. KEEP BEACON ON.`).slice(0, 160);
 }
 
 /* ---------------- engine ---------------- */
 
+/**
+ * @param {object} p
+ * @param {object} p.incident  needs id, sos_code, vitals, position, silent_mode, age_s?, history?, peak_priority?, priority_override?
+ * @param {object|null} p.context geo slice or null
+ */
 export async function triage({ incident, context }) {
   const vitals = incident.vitals || {};
-  const priority_level = priorityLevel({ sos_code: incident.sos_code, vitals });
-  const triage_category = triageCategory({ sos_code: incident.sos_code, vitals });
-  const grounding = groundingFor(triage_category, priority_level);
+  const trend = trendOf(incident.history || []);
+  const { priority, reasons } = assess({ sos_code: incident.sos_code, vitals, trend, floor: incident.peak_priority ?? null, override: incident.priority_override ?? null });
+  const category = triageCategory({ sos_code: incident.sos_code, vitals });
+  const covert = isCovert(incident);
+  const age_s = incident.age_s || 0;
 
-  if (!context) {
-    return {
-      triage: {
-        incident_id: incident.id,
-        priority_level,
-        triage_category,
-        physiological_status: physiologicalText(vitals, priority_level) + ' CONTEXT MISSING: no hazard or asset data.',
-        hazard_assessment: 'CONTEXT_MISSING — no 25 km slice supplied. No tactical claim is made.',
-        deconflicted_route_plan: 'NO PLAN — context unavailable.',
-        dispatcher_checklist: ['Obtain a 25 km context slice before tasking.', 'Hold downlink to a status-only acknowledgement.', 'Escalate to a human medical decision-maker.'],
-        user_satellite_reply: buildReply({ priority: priority_level, category: triage_category, best: null, blocked: false }),
-      },
-      grounding,
-    };
-  }
-
+  const { query, grounding } = retrieve({ sos_code: incident.sos_code, vitals, context, category });
   const survivor = { lat: incident.position.lat, lon: incident.position.lon };
-  const hospitals = (context.hospitals || []).map((h) => ({ ...h }));
-  const hazards = context.hazards || [];
-
-  const routes = hospitals.map((h) => {
-    const blocked_by = hazards
-      .filter((hz) => segmentHitsHazard(survivor, h, hz.polygon))
-      .map((hz) => `${hz.kind}: ${hz.label}`);
-    return { asset: h.name, lat: h.lat, lon: h.lon, capability: h.capability, eta_min: h.eta_min, status: blocked_by.length ? 'BLOCKED' : 'OPEN', blocked_by };
-  });
-
-  const open = routes.filter((r) => r.status === 'OPEN').sort((a, b) => a.eta_min - b.eta_min);
-  const best = open[0] || routes.slice().sort((a, b) => a.eta_min - b.eta_min)[0] || null;
-  const blocked = routes.length > 0 && open.length === 0;
-
-  const hazardBits = hazards.map((h) => `${h.kind} ${h.severity}: ${h.label}`);
-  if (context.weather) {
-    hazardBits.push(`weather ${context.weather.temp_c}C wind ${context.weather.wind_kt}kt vis ${context.weather.visibility_km}km${context.weather.dust ? ' dust' : ''}`);
-  }
+  const d = context ? deconflict({ survivor, context, category }) : null;
 
   const triageObj = {
     incident_id: incident.id,
-    priority_level,
-    triage_category,
-    physiological_status: physiologicalText(vitals, priority_level),
-    hazard_assessment: hazardBits.length ? hazardBits.join('; ') : 'No hazards inside the 25 km slice.',
-    deconflicted_route_plan: buildRoutePlan({ incident, context, routes, best, category: triage_category }),
-    dispatcher_checklist: checklist({ priority: priority_level, category: triage_category, context, routes }),
-    user_satellite_reply: buildReply({ priority: priority_level, category: triage_category, best, blocked }),
+    priority_level: priority,
+    triage_category: category,
+    physiological_status: physiologicalText({ vitals, sos_code: incident.sos_code, trend, age_s }),
+    hazard_assessment: hazardText(context, age_s),
+    deconflicted_route_plan: d ? planText(d, { category }) : 'NO PLAN: context unavailable.',
+    dispatcher_checklist: checklistFor({ priority, category, covert, d, age_s, incident }),
+    user_satellite_reply: replyFor({ priority, covert, grounding, d, category, incident_sos: incident.sos_code }),
   };
 
-  return { triage: triageObj, grounding, routes };
+  return { triage: triageObj, grounding, deconfliction: d, assessment: { reasons, trend, covert, rag_query: query } };
 }
-
-/* Recompute every active incident when a new packet lands. */
-export function reRank(incidents) {
-  const changes = [];
-  for (const inc of incidents) {
-    if (!inc.triage) continue;
-    const next = priorityLevel({ sos_code: inc.sos_code, vitals: inc.vitals });
-    if (next !== inc.triage.priority_level) {
-      changes.push({ incident_id: inc.id, from: inc.triage.priority_level, to: next });
-      inc.triage.priority_level = next;
-      inc.triage.physiological_status = physiologicalText(inc.vitals, next);
-    }
-  }
-  return changes;
-}
-
-/** Gemma 4 seam. Disabled unless AEGIS_LLM=1 and an endpoint is configured. */
-export function llmStatus() {
-  const enabled = process.env.AEGIS_LLM === '1' && !!process.env.AEGIS_LLM_URL;
-  return {
-    enabled,
-    model: process.env.AEGIS_LLM_MODEL || 'gemma4',
-    endpoint: process.env.AEGIS_LLM_URL || null,
-    modelfile: 'contracts/Modelfile',
-    status: enabled ? 'CONFIGURED (unverified in this environment)' : 'DISABLED',
-  };
-}
-
-export { PRIORITY_RANGE, KB };

@@ -3,361 +3,497 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>AegisMonitor — CAD</title>
+<title>AegisMonitor · CAD</title>
+<link rel="icon" href="data:,"/>
 <style>
-  :root{--bg:#070b10;--panel:#0c131b;--line:#1b2836;--ink:#e6eef6;--dim:#7b8fa3;--accent:#4aa8ff;
-        --p1:#ff2f43;--p2:#ff7a1a;--p3:#ffb020;--p4:#38d9c0;--p5:#7aa2ff;}
+  :root{--bg:#06090e;--panel:#0b1118;--panel2:#0f1822;--line:#1a2735;--ink:#e4edf6;--dim:#7a8ea2;--faint:#4d6073;--accent:#4aa8ff;
+        --p1:#ff2f43;--p2:#ff7a1a;--p3:#ffb020;--p4:#38d9c0;--p5:#7aa2ff;--ok:#38d9a0;--bad:#ff5a6b;--warn:#ffb020;
+        --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
-  body{background:var(--bg);color:var(--ink);font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden}
-  .app{display:grid;grid-template-rows:52px 1fr 44px;height:100%}
-  header{display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--line);background:#0a1017}
-  header h1{margin:0;font-size:14px;letter-spacing:3px}
-  header .sub{color:var(--dim);font-size:10.5px;letter-spacing:1px}
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--p4);margin-left:auto}
-  .dot.off{background:var(--p1)}
-  .lnk{color:var(--dim);text-decoration:none;font-size:10.5px;letter-spacing:1px;
-    border:1px solid var(--line);padding:3px 8px;border-radius:4px}
-  .lnk:hover{color:var(--accent);border-color:var(--accent)}
-  .chip.on{color:var(--p4);border-color:var(--p4)}
-  main{display:grid;grid-template-columns:340px 1fr;min-height:0}
-  .list{border-right:1px solid var(--line);overflow-y:auto;background:var(--panel)}
-  .item{padding:11px 13px;border-bottom:1px solid #131e29;cursor:pointer}
-  .item:hover{background:#101a24}
-  .item.sel{background:#12212f;box-shadow:inset 3px 0 0 var(--accent)}
-  .row{display:flex;align-items:center;gap:8px}
-  .prio{font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;border:1px solid}
-  .p1{color:var(--p1);border-color:var(--p1);background:rgba(255,47,67,.1)}
-  .p2{color:var(--p2);border-color:var(--p2);background:rgba(255,122,26,.1)}
-  .p3{color:var(--p3);border-color:var(--p3);background:rgba(255,176,32,.1)}
-  .p4{color:var(--p4);border-color:var(--p4);background:rgba(56,217,192,.1)}
+  body{background:var(--bg);color:var(--ink);font:13px/1.45 var(--sans);overflow:hidden}
+  .app{display:grid;grid-template-rows:auto 1fr auto;height:100%}
+  header{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);background:#080d13;flex-wrap:wrap}
+  header h1{margin:0;font:700 14px var(--mono);letter-spacing:3px}
+  header h1 b{color:var(--accent)}
+  .sub{color:var(--faint);font:10.5px var(--mono);letter-spacing:1px}
+  .sp{flex:1}
+  .chip{font:600 9.5px var(--mono);letter-spacing:.8px;border:1px solid var(--line);border-radius:4px;padding:3px 7px;color:var(--dim);white-space:nowrap}
+  .chip.on{color:var(--ok);border-color:#1f5c4a}.chip.warn{color:var(--warn);border-color:#6b5217}.chip.bad{color:var(--bad);border-color:#6b2530}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--bad)}.dot.on{background:var(--ok)}
+  a.chip{text-decoration:none}a.chip:hover{color:var(--accent);border-color:var(--accent)}
+  main{display:grid;grid-template-columns:310px minmax(0,1fr) 420px;min-height:0}
+  .queue{border-right:1px solid var(--line);background:var(--panel);overflow-y:auto;min-height:0}
+  .qh{padding:9px 12px;border-bottom:1px solid var(--line);font:600 10px var(--mono);letter-spacing:1.5px;color:var(--dim);display:flex;justify-content:space-between;position:sticky;top:0;background:var(--panel);z-index:1}
+  .item{padding:10px 12px;border-bottom:1px solid #111b26;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:2px 9px;align-items:center}
+  .item:hover{background:#0f1a25}.item.sel{background:#12212f;box-shadow:inset 3px 0 0 var(--accent)}
+  .item.closed{opacity:.45}
+  .rank{font:700 11px var(--mono);color:var(--faint);width:18px;text-align:right}
+  .pri{font:700 10px var(--mono);padding:2px 6px;border-radius:3px;border:1px solid;display:inline-block}
+  .p1{color:var(--p1);border-color:var(--p1);background:rgba(255,47,67,.12)}.p2{color:var(--p2);border-color:var(--p2);background:rgba(255,122,26,.1)}
+  .p3{color:var(--p3);border-color:var(--p3);background:rgba(255,176,32,.1)}.p4{color:var(--p4);border-color:var(--p4);background:rgba(56,217,192,.1)}
   .p5{color:var(--p5);border-color:var(--p5);background:rgba(122,162,255,.1)}
-  .item h3{margin:0;font-size:12px}
-  .item .meta{margin-top:4px;color:var(--dim);font-size:10.5px}
-  .item .st{margin-left:auto;font-size:9px;letter-spacing:1px;color:var(--accent)}
-  .detail{padding:16px 18px;overflow-y:auto;min-height:0}
-  .hdr{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
-  .hdr h2{margin:0;font-size:17px;letter-spacing:.5px}
-  .hdr .state{font-size:10px;letter-spacing:1.6px;color:var(--accent)}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
-  .card{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--panel)}
-  .card.wide{grid-column:1 / -1}
-  .card h4{margin:0 0 8px;font-size:9.5px;letter-spacing:1.8px;color:var(--dim);text-transform:uppercase}
-  .kv{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;padding:2px 0}
-  .bad{color:var(--p1)}.ok{color:var(--p4)}.warn{color:var(--p3)}
-  .prose{font-size:11.5px;color:#b4c7d8;line-height:1.65;margin:0}
-  .list-ol{margin:0;padding-left:18px;font-size:11.5px;line-height:1.7;color:#b4c7d8}
-  .btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
-  button{font:inherit;font-size:11px;padding:7px 11px;border-radius:6px;border:1px solid var(--line);
-    background:#101c27;color:var(--ink);cursor:pointer}
-  button:hover{border-color:var(--accent);color:var(--accent)}
-  button.go{border-color:var(--p4);color:var(--p4)}
-  button.gobad{border-color:var(--p1);color:#ff9aa4}
-  textarea{width:100%;background:#08101a;border:1px solid #22384d;border-radius:6px;color:var(--ink);
-    font:inherit;font-size:12px;padding:9px;resize:vertical;min-height:60px}
-  .count{font-size:10px;color:var(--dim);margin-top:4px}
-  .count.over{color:var(--p1)}
-  .empty{color:var(--dim);text-align:center;padding:60px 20px;font-size:11.5px;line-height:1.8}
-  footer{display:flex;align-items:center;gap:10px;padding:0 16px;border-top:1px solid var(--line);
-    background:#0a1017;font-size:10.5px;color:var(--dim)}
-  footer .grow{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-  .ring{width:100%;height:auto;max-height:170px}
-  .chip{font-size:9px;letter-spacing:1px;border:1px solid var(--line);border-radius:3px;padding:2px 5px;
-    color:var(--dim);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
-  .prose,.list-ol{overflow-wrap:anywhere}
-  header{min-width:0;flex-wrap:wrap}
-  header h1,.sub,.lnk,#modelBadge{flex-shrink:0}
-
-  /* narrow screens: stack the list over the detail, let header and footer wrap */
+  .item h3{margin:0;font:600 12px var(--mono);display:flex;gap:6px;align-items:center;min-width:0}
+  .item h3 .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .item h3 .pri,.item h3 .tag{flex:none}
+  .meta{grid-column:2 / 4;color:var(--dim);font:10.5px var(--mono)}
+  .st{font:600 9px var(--mono);letter-spacing:1px;color:var(--accent);white-space:nowrap}
+  .tag{font:700 9px var(--mono);padding:1px 5px;border-radius:3px}
+  .tag.det{background:rgba(255,47,67,.18);color:var(--p1)}.tag.cov{background:rgba(122,162,255,.18);color:var(--p5)}.tag.can{background:rgba(255,176,32,.2);color:var(--p3)}
+  .center{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;background:#070b10}
+  #mapwrap{position:relative;min-height:0;overflow:hidden}
+  svg#map{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+  svg#map.drag{cursor:grabbing}
+  .legend{position:absolute;left:10px;bottom:10px;background:rgba(8,13,19,.88);border:1px solid var(--line);border-radius:6px;padding:7px 10px;font:10px var(--mono);color:var(--dim);display:grid;grid-template-columns:auto auto;gap:2px 14px;pointer-events:none}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+  .mapctl{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px}
+  .mapctl button{width:30px;height:30px;padding:0;font:700 14px var(--mono)}
+  .covbar{position:absolute;left:10px;top:10px;right:56px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none}
+  .vit{border-top:1px solid var(--line);background:var(--panel);padding:8px 12px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .spark b{font:600 9.5px var(--mono);color:var(--dim);letter-spacing:1px;display:flex;justify-content:space-between}
+  .spark svg{width:100%;height:46px;display:block}
+  .detail{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;min-height:0;padding:12px 14px 24px}
+  .hdr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .hdr h2{margin:0;font:700 16px var(--mono)}
+  .cat{font:600 10px var(--mono);letter-spacing:1px;color:var(--accent)}
+  .pos{color:var(--dim);font:10.5px var(--mono);margin:4px 0 10px}
+  .card{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--panel2);margin-top:10px}
+  .card h4{margin:0 0 7px;font:600 9.5px var(--mono);letter-spacing:1.6px;color:var(--dim);text-transform:uppercase}
+  .kv{display:flex;justify-content:space-between;gap:10px;font:11.5px var(--mono);padding:2px 0}
+  .kv span:first-child{color:var(--dim)}
+  .bad{color:var(--bad)}.ok{color:var(--ok)}.warn{color:var(--warn)}
+  .prose{font-size:12px;color:#b5c7d8;line-height:1.6;margin:0;overflow-wrap:anywhere}
+  ol.cl{margin:0;padding-left:18px;font-size:12px;line-height:1.65;color:#b5c7d8}
+  .banner{border:1px solid;border-radius:8px;padding:9px 12px;margin-top:10px;font-size:12px}
+  .banner.can{border-color:#6b5217;background:rgba(255,176,32,.08);color:#ffd27a}
+  .banner.cov{border-color:#2d3b73;background:rgba(122,162,255,.08);color:#b9c9ff}
+  table.opt{width:100%;border-collapse:collapse;font:11px var(--mono)}
+  table.opt td,table.opt th{padding:4px 5px;border-bottom:1px solid #15212d;text-align:left;vertical-align:top}
+  table.opt th{color:var(--dim);font-weight:600;font-size:9.5px;letter-spacing:1px}
+  table.opt tr.rec td{background:rgba(56,217,160,.07)}
+  .why{color:var(--bad);font-size:10px}
+  .g{border-left:2px solid #24405a;padding:3px 0 3px 9px;margin:7px 0;font-size:10.5px;color:#9db2c5}
+  .g b{color:var(--accent);font-family:var(--mono)}.g .role{font:600 8.5px var(--mono);color:var(--faint);margin-left:6px;letter-spacing:1px}
+  .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  button,select,input{font:inherit;font-size:11.5px;border-radius:6px;border:1px solid var(--line);background:#101c28;color:var(--ink)}
+  button{padding:7px 11px;cursor:pointer}button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  button:disabled{opacity:.4;cursor:not-allowed}button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  button.go{border-color:#1f6a58;color:var(--ok)}button.danger{border-color:#6b2530;color:#ff9aa4}
+  select,input{padding:6px 8px}
+  textarea{width:100%;background:#08111b;border:1px solid #22384d;border-radius:6px;color:var(--ink);font:12px var(--mono);padding:8px;resize:vertical;min-height:58px}
+  .count{font:10px var(--mono);color:var(--dim);margin-top:3px}.count.over{color:var(--bad)}
+  .empty{color:var(--dim);text-align:center;padding:50px 18px;font-size:12px;line-height:1.8}
+  footer{border-top:1px solid var(--line);background:#080d13;padding:7px 12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  footer .grow{flex:1;min-width:180px;color:var(--dim);font:10.5px var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  footer label{color:var(--dim);font:10px var(--mono)}
+  .audit .a{font:10.5px var(--mono);padding:3px 0;border-bottom:1px solid #131e29;color:#8aa1b6;overflow-wrap:anywhere}
+  .audit .a time{color:var(--faint);margin-right:6px}
+  @media (max-width:1200px){main{grid-template-columns:270px minmax(0,1fr) 360px}}
   @media (max-width:900px){
-    .app{grid-template-rows:auto 1fr auto}
-    header{gap:10px;padding:8px 10px;min-height:52px}
-    header h1{font-size:13px;letter-spacing:1.5px}
-    header .sub{display:none}
-    .chip{max-width:150px}
-    main{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-    .list{border-right:none;border-bottom:1px solid var(--line);max-height:32vh}
-    .detail{padding:13px 12px}
-    .grid{grid-template-columns:1fr;gap:10px}
-    .hdr h2{font-size:15px}
-    footer{min-height:44px;flex-wrap:wrap;padding:7px 10px;gap:6px}
-    footer button{font-size:10px;padding:6px 8px}
-    footer .grow{order:9;flex-basis:100%;white-space:normal;line-height:1.5}
-    .ring{max-height:150px}
-    .empty{padding:34px 14px}
+    body{overflow:auto}.app{height:auto;min-height:100%}
+    main{grid-template-columns:1fr;grid-template-rows:auto}
+    .queue{max-height:30vh;border-right:0;border-bottom:1px solid var(--line)}
+    #mapwrap{height:52vh}
+    .covbar{right:46px}.covbar .chip{font-size:8px;padding:1px 4px}
+    .detail{border-left:0;border-top:1px solid var(--line);overflow:visible}
+    .vit{grid-template-columns:1fr}
+    footer .grow{flex-basis:100%;order:9;white-space:normal}
   }
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <h1>AEGIS<span style="color:var(--accent)">·</span>CAD</h1>
-    <span class="sub">satellite distress · triage · dispatch</span>
-    <a class="lnk" href="/" title="SHADE CLOCK demo">SHADE ↗</a>
-    <span class="chip" id="modelBadge" title="triage engine in use">RULES ONLY</span>
-    <span class="dot off" id="wsDot" title="websocket"></span>
+    <h1>AEGIS<b>·</b>CAD</h1><span class="sub">satellite distress · triage · dispatch</span>
+    <span class="sp"></span>
+    <span class="chip" id="chipGeo" title="geo-context source">GEO ?</span>
+    <span class="chip" id="chipEngine" title="triage engine">RULES ONLY</span>
+    <span class="chip" id="chipKeys" title="device key mode">KEYS ?</span>
+    <span class="chip" id="chipAuth" title="dispatcher auth">AUTH ?</span>
+    <input id="tok" type="password" placeholder="dispatcher token" autocomplete="off" style="display:none;width:150px" aria-label="dispatcher token"/>
+    <a class="chip" href="/field.html" title="offline phone companion">FIELD APP ↗</a>
+    <span class="dot" id="wsDot" title="websocket" role="status" aria-label="websocket status"></span>
   </header>
 
   <main>
-    <div class="list" id="list"><div class="empty">No incidents.<br>Use the wristband buttons below.</div></div>
-    <div class="detail" id="detail">
-      <div class="empty">Select an incident, or trigger a wristband gesture.<br><br>
-        Synthetic beacons only. No live satellite, patient or conflict data.</div>
-    </div>
+    <section class="queue" aria-label="incident queue">
+      <div class="qh"><span>QUEUE</span><span id="qcount">0</span></div>
+      <div id="list"><div class="empty">No incidents.<br>Use the simulator below.</div></div>
+    </section>
+
+    <section class="center">
+      <div id="mapwrap">
+        <svg id="map" role="img" aria-label="Tactical map of the selected incident and its 25 km context"></svg>
+        <div class="covbar" id="covbar"></div>
+        <div class="mapctl"><button id="zin" aria-label="zoom in">+</button><button id="zout" aria-label="zoom out">−</button><button id="zreset" aria-label="reset view">⌖</button></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="vit" id="vit"></div>
+    </section>
+
+    <section class="detail" id="detail" aria-live="off"><div class="empty">Select an incident, or trigger a wristband gesture below.<br><br>Synthetic beacons only. No live satellite, patient or conflict data in demo mode.</div></section>
   </main>
 
   <footer>
-    <button id="btnMedical">3-PRESS · MEDICAL</button>
-    <button id="btnHostile">5-PRESS · HOSTILE</button>
-    <button id="btnMesh">MESH RELAY (2 HOPS)</button>
-    <button id="btnSim">PLAIN BEACON</button>
-    <span class="grow" id="log">ready</span>
-    <span id="counts">0 incidents</span>
+    <select id="scenario" aria-label="scenario"></select>
+    <button id="bMed">3× MEDICAL</button>
+    <button id="bHos">5× HOSTILE</button>
+    <button id="bDur">7× DURESS</button>
+    <button id="bCancel" title="10 s hold on the selected incident's device">HOLD 10s CANCEL</button>
+    <button id="bDet" title="send worsening vitals for the selected incident's device">▼ DETERIORATE</button>
+    <button id="bMesh" title="packet with no sky: stored on the mesh">MESH · NO SKY</button>
+    <button id="bSky" title="restore sky at phone-a: stored packets flush">RESTORE SKY</button>
+    <button id="bSim">PLAIN BEACON</button>
+    <label><input type="checkbox" id="silent"/> silent-mode device</label>
+    <span class="grow" id="log" role="status" aria-live="polite">ready</span>
+    <span class="sub" id="counts"></span>
   </footer>
 </div>
 
 <script>
-let incidents = [];
-let selected = null;
+'use strict';
 const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const log = (m) => { $('log').textContent = m; };
-const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const PCOL = { 1: '#ff2f43', 2: '#ff7a1a', 3: '#ffb020', 4: '#38d9c0', 5: '#7aa2ff' };
+const KCOL = { CONFLICT: '#ff3b4d', AIRSPACE: '#a57bff', FLOOD: '#3b9cff', INFRASTRUCTURE: '#ff8a3b', WILDFIRE: '#ffc43b', SEISMIC: '#9aa6b2' };
 
-async function api(path, opts) {
-  const res = await fetch(path, opts);
+let health = null, list = [], full = null, selected = null, scenarios = [];
+const drafts = new Map();
+let view = { z: 1, ox: 0, oy: 0 };
+
+/* ---------------- api ---------------- */
+const token = () => sessionStorage.getItem('aegis.token') || '';
+async function api(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (token()) headers.authorization = 'Bearer ' + token();
+  if (opts.body !== undefined) headers['content-type'] = 'application/json';
+  const res = await fetch(path, { ...opts, headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body) });
   const text = await res.text();
-  let body; try { body = JSON.parse(text); } catch { body = { raw: text }; }
+  let body; try { body = JSON.parse(text); } catch { body = { error: text.slice(0, 120) }; }
+  if (res.status === 401) { $('tok').style.display = ''; $('tok').focus(); }
   if (!res.ok) throw new Error(body.error || res.status + ' ' + res.statusText);
   return body;
 }
+const post = (path, body = {}) => api(path, { method: 'POST', body });
 
-const prioClass = (p) => 'p' + (p || 3);
-const etaText = (m) => (m == null ? '—' : m > 120 ? (m / 60).toFixed(1) + ' h' : m + ' min');
+/* ---------------- formatting ---------------- */
+const etaText = (m) => (m == null ? '—' : m > 180 ? (m / 60).toFixed(1) + ' h' : m + ' min');
+const ageText = (iso) => { const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000); return s < 90 ? Math.round(s) + 's' : s < 5400 ? Math.round(s / 60) + 'm' : (s / 3600).toFixed(1) + 'h'; };
+const pcls = (p) => 'p' + (p || 3);
 
+/* ---------------- queue ---------------- */
 function renderList() {
+  $('qcount').textContent = list.filter((i) => i.queue_rank).length + ' open / ' + list.length;
   const el = $('list');
-  if (!incidents.length) { el.innerHTML = '<div class="empty">No incidents.<br>Use the wristband buttons below.</div>'; return; }
-  el.innerHTML = incidents.map((i) => {
+  if (!list.length) { el.innerHTML = '<div class="empty">No incidents.<br>Use the simulator below.</div>'; return; }
+  el.innerHTML = list.map((i) => {
     const v = i.vitals || {};
-    return `
-    <div class="item ${selected === i.id ? 'sel' : ''}" data-id="${i.id}">
-      <div class="row">
-        <span class="prio ${prioClass(i.priority_level)}">P${i.priority_level ?? '–'}</span>
-        <h3>${esc(i.device_label)}</h3>
-        <span class="st">${esc(i.state)}</span>
-      </div>
-      <div class="meta">${esc(i.category || 'untriaged')} · HR ${v.heart_rate ?? '—'} · SpO2 ${v.spo2 ?? '—'} · batt ${v.battery_pct ?? '—'}% · ${esc(i.source)}</div>
+    return `<div class="item ${selected === i.id ? 'sel' : ''} ${i.queue_rank ? '' : 'closed'}" data-id="${esc(i.id)}" tabindex="0" role="button" aria-label="${esc(i.device_label)} priority ${i.priority_level}">
+      <span class="rank">${i.queue_rank ?? '·'}</span>
+      <h3><span class="pri ${pcls(i.priority_level)}">P${i.priority_level ?? '–'}</span><span class="lbl">${esc(i.device_label)}</span>${i.deteriorating ? '<span class="tag det" title="vitals worsening">▼</span>' : ''}${i.covert ? '<span class="tag cov" title="covert: haptic acknowledgement only">COVERT</span>' : ''}${i.cancel_request?.pending ? '<span class="tag can">CANCEL?</span>' : ''}</h3>
+      <span class="st">${esc(i.state)}</span>
+      <div class="meta">${esc(i.category || 'untriaged')} · HR ${v.heart_rate || '—'} · SpO₂ ${v.spo2 || '—'} · ${i.packets} pkt · ${ageText(i.updated_at)}</div>
     </div>`;
   }).join('');
-  el.querySelectorAll('.item').forEach((n) => { n.onclick = () => { selected = n.dataset.id; renderList(); renderDetail(); }; });
+  el.querySelectorAll('.item').forEach((n) => {
+    const pick = () => select(n.dataset.id);
+    n.onclick = pick;
+    n.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
+  });
 }
 
-function ringSvg(inc) {
-  const ctx = inc.context || { hazards: [] };
-  const haz = ctx.hazards || [];
-  const hosp = ctx.hospitals || [];
-  const toXY = (lat, lon) => {
-    const dx = (lon - inc.position.lon) * 111.32 * Math.cos(inc.position.lat * Math.PI / 180);
-    const dy = (lat - inc.position.lat) * 111.32;
-    return [75 + dx * 2.4, 75 - dy * 2.4];
-  };
-  const polys = haz.map((h) => {
-    const pts = h.polygon.map(([lat, lon]) => toXY(lat, lon).map((n) => n.toFixed(1)).join(',')).join(' ');
-    const col = h.severity === 'HIGH' ? '#ff2f43' : '#ffb020';
-    return `<polygon points="${pts}" fill="${col}22" stroke="${col}" stroke-width="1"/>`;
+/* ---------------- map ---------------- */
+const W = 800, H = 600, KMPX = 10.2;
+function projector(c) {
+  const k = KMPX * view.z, cos = Math.cos(c.lat * Math.PI / 180);
+  return (lat, lon) => [W / 2 + (lon - c.lon) * 111.32 * cos * k + view.ox, H / 2 - (lat - c.lat) * 110.57 * k + view.oy];
+}
+const pts = (P, poly) => poly.map(([lat, lon]) => P(lat, lon).map((n) => n.toFixed(1)).join(',')).join(' ');
+
+function renderMap() {
+  const svg = $('map');
+  if (!full) {
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" fill="#4d6073" font-size="13" text-anchor="middle" font-family="ui-monospace,monospace">no incident selected</text>`;
+    $('legend').innerHTML = ''; $('covbar').innerHTML = ''; return;
+  }
+  const c = full.position, ctx = full.context || { hazards: [], hospitals: [], assets: [] };
+  const P = projector(c), k = KMPX * view.z;
+  const [sx, sy] = P(c.lat, c.lon);
+  let s = `<defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#38d9a0"/></marker></defs>`;
+  s += `<rect width="${W}" height="${H}" fill="#070b10"/>`;
+  for (let x = 0; x <= W; x += 50) s += `<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="#0c141c"/>`;
+  for (let y = 0; y <= H; y += 50) s += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#0c141c"/>`;
+  for (const km of [5, 10, 25]) {
+    s += `<circle cx="${sx}" cy="${sy}" r="${km * k}" fill="none" stroke="${km === 25 ? '#2a4258' : '#18293a'}" stroke-dasharray="${km === 25 ? '' : '3 5'}"/>`;
+    s += `<text x="${sx + 4}" y="${sy - km * k - 3}" fill="#4d6073" font-size="9" font-family="ui-monospace,monospace">${km} km</text>`;
+  }
+  for (const h of ctx.hazards || []) {
+    const col = KCOL[h.kind] || '#999';
+    s += `<polygon points="${pts(P, h.polygon)}" fill="${col}2a" stroke="${col}" stroke-width="1.2" stroke-dasharray="${h.severity === 'HIGH' ? '' : '4 3'}"><title>${esc(h.kind)} ${esc(h.severity)}: ${esc(h.label)} (blocks ${esc((h.blocks || []).join(', ') || 'nothing')})</title></polygon>`;
+    const [hx, hy] = P(h.center.lat, h.center.lon);
+    s += `<text x="${hx}" y="${hy + 3}" fill="${col}" font-size="8.5" text-anchor="middle" font-family="ui-monospace,monospace" font-weight="700">${esc(h.kind.slice(0, 4))}</text>`;
+  }
+  const d = full.deconfliction;
+  // routes
+  for (const o of d?.options || []) {
+    const [ax, ay] = P(o.asset.lat, o.asset.lon);
+    const isRec = d.recommended && d.recommended.asset.id === o.asset.id;
+    if (o.feasible && o.approach?.kind === 'DOGLEG') {
+      const [wx, wy] = P(o.approach.waypoint.lat, o.approach.waypoint.lon);
+      s += `<polyline points="${ax},${ay} ${wx},${wy} ${sx},${sy}" fill="none" stroke="${isRec ? '#38d9a0' : '#2c6a5a'}" stroke-width="${isRec ? 2.4 : 1.4}" ${isRec ? 'marker-end="url(#ar)"' : ''}/>`;
+      s += `<circle cx="${wx}" cy="${wy}" r="3.5" fill="#070b10" stroke="#38d9a0"/><text x="${wx + 6}" y="${wy - 4}" fill="#38d9a0" font-size="8.5" font-family="ui-monospace,monospace">WP</text>`;
+      s += `<line x1="${ax}" y1="${ay}" x2="${sx}" y2="${sy}" stroke="#ff5a6b" stroke-dasharray="2 5" opacity=".55"/>`;
+    } else if (o.feasible) {
+      s += `<line x1="${ax}" y1="${ay}" x2="${sx}" y2="${sy}" stroke="${isRec ? '#38d9a0' : '#2c6a5a'}" stroke-width="${isRec ? 2.4 : 1.4}" ${isRec ? 'marker-end="url(#ar)"' : ''}/>`;
+    } else {
+      s += `<line x1="${ax}" y1="${ay}" x2="${sx}" y2="${sy}" stroke="#ff5a6b" stroke-dasharray="2 5" opacity=".5"/>`;
+    }
+  }
+  if (d?.evac) {
+    const [hx, hy] = P(d.evac.hospital.lat, d.evac.hospital.lon);
+    s += `<line x1="${sx}" y1="${sy}" x2="${hx}" y2="${hy}" stroke="${d.evac.blocked ? '#ff5a6b' : '#38d9c0'}" stroke-dasharray="6 4" opacity=".8"/>`;
+  }
+  for (const h of ctx.hospitals || []) {
+    const [x, y] = P(h.lat, h.lon);
+    const dead = h.status === 'DAMAGED' || h.status === 'CLOSED';
+    const col = dead ? '#6b7a88' : h.status === 'UNVERIFIED' ? '#7fc4ff' : '#4aa8ff';
+    s += `<g><title>${esc(h.name)} · ${esc(h.status)} · ${esc((h.capability || []).join(', '))}</title><rect x="${x - 6}" y="${y - 6}" width="12" height="12" rx="2" fill="${dead ? 'none' : col + '33'}" stroke="${col}"/><path d="M${x - 3},${y} H${x + 3} M${x},${y - 3} V${y + 3}" stroke="${col}" stroke-width="1.6"/>${dead ? `<path d="M${x - 6},${y - 6} L${x + 6},${y + 6}" stroke="${col}"/>` : ''}<text x="${x + 9}" y="${y + 3}" fill="${col}" font-size="9" font-family="ui-monospace,monospace">${esc(String(h.name).slice(0, 22))}</text></g>`;
+  }
+  for (const a of ctx.assets || []) {
+    const [x, y] = P(a.lat, a.lon);
+    const col = '#e4edf6';
+    const shape = a.kind === 'HELI' ? `<path d="M${x},${y - 7} L${x + 7},${y + 6} L${x - 7},${y + 6} z"/>` : a.kind === 'DRONE' ? `<path d="M${x},${y - 7} L${x + 7},${y} L${x},${y + 7} L${x - 7},${y} z"/>` : `<rect x="${x - 6}" y="${y - 6}" width="12" height="12"/>`;
+    const assigned = full.assigned_unit?.id === a.id;
+    s += `<g fill="${assigned ? '#38d9a0' : '#0b1118'}" stroke="${assigned ? '#38d9a0' : col}" stroke-width="1.4"><title>${esc(a.name)} (${esc(a.kind)})</title>${shape}<text x="${x + 10}" y="${y + 3}" fill="${col}" stroke="none" font-size="9" font-family="ui-monospace,monospace">${esc(a.name)}</text></g>`;
+  }
+  // other incidents
+  for (const o of list) {
+    if (o.id === full.id || !o.queue_rank) continue;
+    const [x, y] = P(o.position.lat, o.position.lon);
+    if (x < -20 || x > W + 20 || y < -20 || y > H + 20) continue;
+    s += `<g class="other" data-id="${esc(o.id)}" style="cursor:pointer"><title>${esc(o.device_label)} P${o.priority_level}</title><circle cx="${x}" cy="${y}" r="5" fill="${PCOL[o.priority_level] || '#999'}55" stroke="${PCOL[o.priority_level] || '#999'}"/></g>`;
+  }
+  const col = PCOL[full.triage?.priority_level] || '#38d9a0';
+  s += `<circle cx="${sx}" cy="${sy}" r="14" fill="none" stroke="${col}" opacity=".5"><animate attributeName="r" values="8;22" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".6;0" dur="2s" repeatCount="indefinite"/></circle>`;
+  s += `<circle cx="${sx}" cy="${sy}" r="6" fill="${col}"/><text x="${sx + 10}" y="${sy - 8}" fill="#fff" font-size="10" font-weight="700" font-family="ui-monospace,monospace">${esc(full.device_label)}</text>`;
+  const kmBar = 5 * k;
+  s += `<g transform="translate(${W - 150},${H - 24})"><line x2="${kmBar}" stroke="#7a8ea2"/><line y1="-4" y2="4" stroke="#7a8ea2"/><line x1="${kmBar}" x2="${kmBar}" y1="-4" y2="4" stroke="#7a8ea2"/><text x="${kmBar + 6}" y="3" fill="#7a8ea2" font-size="9" font-family="ui-monospace,monospace">5 km</text></g>`;
+  s += `<g transform="translate(${W - 34},${H - 70})"><circle r="16" fill="none" stroke="#1a2735"/><path d="M0,-13 L4,0 L-4,0 z" fill="#ff5a6b"/><text y="-17" fill="#7a8ea2" font-size="9" text-anchor="middle" font-family="ui-monospace,monospace">N</text></g>`;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+  svg.querySelectorAll('.other').forEach((n) => { n.onclick = (e) => { e.stopPropagation(); select(n.dataset.id); }; });
+
+  const kinds = [...new Set((ctx.hazards || []).map((h) => h.kind))];
+  $('legend').innerHTML = (kinds.length ? kinds.map((kd) => `<span><i style="background:${KCOL[kd]}"></i>${esc(kd)}</span>`).join('') : '<span>no hazards in slice</span>') +
+    '<span><i style="background:#38d9a0"></i>route</span><span><i style="background:#ff5a6b"></i>blocked leg</span>';
+  const cov = ctx.coverage || {};
+  $('covbar').innerHTML = Object.entries(cov).map(([layer, v]) => {
+    const bad = /^unavailable|unconfigured/.test(v); const demo = v === 'demo';
+    return `<span class="chip ${bad ? 'bad' : demo ? 'warn' : 'on'}" title="${esc(v)}">${esc(layer)}: ${bad ? 'NO DATA' : demo ? 'DEMO' : 'LIVE'}</span>`;
   }).join('');
-  const hs = hosp.map((h) => {
-    const [x, y] = toXY(h.lat, h.lon);
-    return `<circle cx="${x}" cy="${y}" r="4" fill="#4aa8ff"/><text x="${Math.min(x + 6, 134)}" y="${y + 3}" fill="#4aa8ff" font-size="7">${esc(String(h.name).split(' ').slice(-1)[0])}</text>`;
-  }).join('');
-  return `<svg class="ring" viewBox="0 0 150 150">
-    <circle cx="75" cy="75" r="62" fill="none" stroke="#1b2836" stroke-dasharray="3 5"/>
-    <circle cx="75" cy="75" r="31" fill="none" stroke="#1b2836" stroke-dasharray="2 4"/>
-    ${polys}${hs}
-    <circle cx="75" cy="75" r="5" fill="#38d9c0"/>
-    <text x="75" y="10" fill="#7b8fa3" font-size="7" text-anchor="middle">25 km</text>
-  </svg>`;
 }
 
-async function renderDetail() {
-  const stub = incidents.find((i) => i.id === selected);
+/* ---------------- sparklines ---------------- */
+function spark(label, series, { min, max, warnBelow, warnAbove, unit }) {
+  const vals = series.filter((v) => v > 0);
+  if (!vals.length) return `<div class="spark"><b>${label}<span>—</span></b><svg viewBox="0 0 100 46"></svg></div>`;
+  const lo = Math.min(min, ...vals), hi = Math.max(max, ...vals);
+  const x = (i) => (series.length === 1 ? 50 : 4 + (i / (series.length - 1)) * 92);
+  const y = (v) => 42 - ((v - lo) / (hi - lo || 1)) * 38;
+  const path = series.map((v, i) => (v > 0 ? `${x(i).toFixed(1)},${y(v).toFixed(1)}` : null)).filter(Boolean).join(' ');
+  const last = vals[vals.length - 1];
+  const bad = (warnBelow != null && last < warnBelow) || (warnAbove != null && last > warnAbove);
+  let band = '';
+  if (warnBelow != null) band = `<rect x="0" y="${y(warnBelow)}" width="100" height="${46 - y(warnBelow)}" fill="#ff2f4318"/>`;
+  if (warnAbove != null) band = `<rect x="0" y="0" width="100" height="${y(warnAbove)}" fill="#ff2f4318"/>`;
+  return `<div class="spark"><b>${label}<span class="${bad ? 'bad' : ''}">${last}${unit}</span></b><svg viewBox="0 0 100 46" preserveAspectRatio="none">${band}<polyline points="${path}" fill="none" stroke="${bad ? '#ff5a6b' : '#4aa8ff'}" stroke-width="1.6" vector-effect="non-scaling-stroke"/>${series.map((v, i) => (v > 0 ? `<circle cx="${x(i)}" cy="${y(v)}" r="1.8" fill="${bad && i === series.length - 1 ? '#ff5a6b' : '#4aa8ff'}"/>` : '')).join('')}</svg></div>`;
+}
+function renderVitals() {
+  if (!full) { $('vit').innerHTML = ''; return; }
+  const h = full.history || [];
+  $('vit').innerHTML =
+    spark('HEART RATE', h.map((p) => p.heart_rate), { min: 40, max: 140, warnAbove: 130, unit: ' bpm' }) +
+    spark('SpO₂', h.map((p) => p.spo2), { min: 85, max: 100, warnBelow: 90, unit: '%' }) +
+    spark('BATTERY', h.map((p) => p.battery_pct), { min: 0, max: 100, warnBelow: 15, unit: '%' });
+}
+
+/* ---------------- detail ---------------- */
+function renderDetail() {
   const el = $('detail');
-  if (!stub) { el.innerHTML = '<div class="empty">Select an incident.</div>'; return; }
-  let full;
-  try { full = await api('/api/v1/incidents/' + stub.id); } catch (e) { el.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
-  const t = full.triage || {};
-
-  const routes = (full.routes || []).map((r) => `
-    <div class="kv"><span>${esc(r.asset)}</span><b class="${r.status === 'OPEN' ? 'ok' : 'bad'}">${r.status} · ${r.eta_min} min</b></div>
-    ${r.blocked_by.length ? `<div class="kv"><span></span><small class="bad">${esc(r.blocked_by.join(' / '))}</small></div>` : ''}`).join('')
-    || '<div class="kv"><span>no routes</span></div>';
-
-  const audit = (full.audit || []).slice().reverse().map((a) =>
-    `<div class="kv"><span>${esc(a.from || '—')} → ${esc(a.to)} <span class="chip">${esc(a.actor)}</span></span>
-     <small>${esc((a.at || '').slice(11, 19))}</small></div>
-     <div style="font-size:10px;color:#5f768a;margin-bottom:5px">${esc(a.reason)}</div>`).join('');
+  if (!full) { el.innerHTML = '<div class="empty">Select an incident, or trigger a wristband gesture below.<br><br>Synthetic beacons only. No live satellite, patient or conflict data in demo mode.</div>'; return; }
+  const scrollTop = el.scrollTop;
+  const t = full.triage || {}, v = full.vitals || {}, d = full.deconfliction;
+  const covert = full.vitals?.duress_flag || full.silent_mode;
+  const closed = full.state === 'CLOSED';
+  const b = full.battery || {};
+  const optRows = (d?.options || []).map((o) => {
+    const rec = d.recommended && d.recommended.asset.id === o.asset.id;
+    return `<tr class="${rec ? 'rec' : ''}"><td>${rec ? '▶ ' : ''}${esc(o.mode)}</td><td>${esc(o.asset.name)}</td><td>${o.feasible ? esc(etaText(o.eta_min)) : '<span class="bad">NO</span>'}</td><td>${o.feasible ? (o.approach.kind === 'DIRECT' ? 'direct HDG ' + String(o.approach.heading_deg).padStart(3, '0') : 'dogleg +' + o.approach.detour_km + ' km') : ''}${o.blocked_by?.length ? `<div class="why">${esc(o.blocked_by.join(' / '))}</div>` : ''}</td></tr>`;
+  }).join('');
+  const assets = (full.context?.assets || []).map((a) => `<option value="${esc(a.id)}" ${full.deconfliction?.recommended?.asset.id === a.id ? 'selected' : ''}>${esc(a.name)} (${esc(a.kind)})</option>`).join('');
+  const quick = ['STAY STILL. HELP IS ON THE WAY.', 'KEEP BEACON ON. SAVE BATTERY.', 'MOVE TO COVER. STAY QUIET.', 'SIP WATER. REST IN SHADE.'];
+  const draft = drafts.has(full.id) ? drafts.get(full.id) : (covert ? 'HAPTIC_ACK_ONLY' : t.user_satellite_reply || '');
+  const audit = (full.audit || []).slice().reverse().map((a) => `<div class="a"><time>${esc((a.at || '').slice(11, 19))}</time><b>${esc(a.from || '—')}→${esc(a.to)}</b> [${esc(a.actor)}] ${esc(a.reason)}</div>`).join('');
+  const dl = (full.downlinks || []).slice(-4).reverse().map((m) => `<div class="a"><time>${esc((m.created_at || '').slice(11, 19))}</time>${esc(m.kind)} ${esc(m.body.event || m.body.text || '')} ${m.delivered_at ? '· delivered' : '· queued'}</div>`).join('');
 
   el.innerHTML = `
-    <div class="hdr">
-      <h2>${esc(full.device_label)}</h2>
-      <span class="prio ${prioClass(t.priority_level)}">P${t.priority_level ?? '–'}</span>
-      <span class="state">${esc(t.triage_category || '—')} · ${esc(full.state)}</span>
-      <span class="chip" title="which engine produced this triage">${esc(full.model ? (full.model.model || full.model.used) : 'rules')}</span>
-    </div>
-    <div style="color:var(--dim);font-size:11px">
-      ${(full.position?.lat ?? 0).toFixed(5)}, ${(full.position?.lon ?? 0).toFixed(5)} · alt ${full.position?.altitude_m ?? '—'} m ·
-      ${full.telemetry_bytes} B telemetry / ${full.envelope_bytes} B envelope · key ${esc(full.key_id)} · ${esc(full.source)}
-    </div>
+    <div class="hdr"><h2>${esc(full.device_label)}</h2><span class="pri ${pcls(t.priority_level)}">P${t.priority_level ?? '–'}</span>
+      <span class="cat">${esc(t.triage_category || '—')} · ${esc(full.state)}</span>
+      <span class="chip" title="engine that produced this triage">${esc(full.model?.used === 'llm' ? 'LLM · ' + (full.model.model || '') : 'RULES')}</span></div>
+    <div class="pos">${full.position.lat.toFixed(5)}, ${full.position.lon.toFixed(5)} · alt ${full.position.altitude_m} m · ${full.telemetry_bytes} B ${esc(full.codec)} / ${full.envelope_bytes} B sealed · epoch ${full.key_epoch} · ${esc(full.source)}${full.mesh ? ' · mesh ' + full.mesh.hops + ' hop(s)' : ''}${full.age_s > 60 ? ' · <span class="warn">beacon ' + Math.round(full.age_s / 60) + ' min old</span>' : ''}</div>
+    ${full.cancel_request?.pending ? `<div class="banner can"><b>Wristband cancel requested.</b> ${full.cancel_request.possibly_coerced ? 'Covert/duress device: this may be COERCED. Verify off-air before closing.' : 'A unit is already committed.'}<div class="btns"><button class="danger" data-cancel="1">Confirm &amp; close</button><button data-cancel="0">Reject (keep open)</button></div></div>` : ''}
+    ${covert ? `<div class="banner cov"><b>Covert.</b> ${v.duress_flag ? 'Duress flag set.' : 'Device is in silent mode.'} Only a haptic acknowledgement may be sent. Plan extraction off-air.</div>` : ''}
+    ${(d?.survivor_inside || []).length ? `<div class="banner can"><b>Survivor is inside:</b> ${esc(d.survivor_inside.join('; '))}</div>` : ''}
 
-    <div class="grid">
-      <div class="card">
-        <h4>Vitals & link</h4>
-        <div class="kv"><span>heart rate</span><b class="${full.vitals.heart_rate > 130 ? 'bad' : ''}">${full.vitals.heart_rate ?? '—'} bpm</b></div>
-        <div class="kv"><span>SpO2</span><b class="${full.vitals.spo2 && full.vitals.spo2 < 90 ? 'bad' : ''}">${full.vitals.spo2 ?? '—'} %</b></div>
-        <div class="kv"><span>battery</span><b class="${full.vitals.battery_pct < 15 ? 'warn' : ''}">${full.vitals.battery_pct ?? '—'} %</b></div>
-        <div class="kv"><span>battery ETA (est.)</span><b>${etaText(full.battery_eta_min)}</b></div>
-        <div class="kv"><span>duress</span><b class="${full.vitals.duress_flag ? 'bad' : 'ok'}">${full.vitals.duress_flag ? 'YES — COVERT' : 'no'}</b></div>
-        ${full.mesh ? `<div class="kv"><span>mesh hops</span><b>${full.mesh.hops}</b></div>` : ''}
-      </div>
-      <div class="card">
-        <h4>25 km context</h4>
-        ${ringSvg(full)}
-      </div>
+    <div class="card"><h4>Vitals &amp; link</h4>
+      <div class="kv"><span>heart rate</span><b class="${v.heart_rate > 130 || (v.heart_rate && v.heart_rate < 45) ? 'bad' : ''}">${v.heart_rate || '—'} bpm</b></div>
+      <div class="kv"><span>SpO₂</span><b class="${v.spo2 && v.spo2 < 90 ? 'bad' : ''}">${v.spo2 || '—'} %</b></div>
+      <div class="kv"><span>battery</span><b class="${v.battery_pct < 15 ? 'warn' : ''}">${v.battery_pct ?? '—'} %</b></div>
+      <div class="kv"><span>battery ETA</span><b title="${esc(b.model)} model, ${b.samples} sample(s)">${etaText(b.eta_min)} <small style="color:var(--faint)">(${esc(b.model)})</small></b></div>
+      <div class="kv"><span>packets</span><b>${full.history.length}${full.trend?.deteriorating ? ' · <span class="bad">▼ ' + esc(full.trend.reasons.join('; ')) + '</span>' : ''}</b></div>
+      ${full.priority_reasons?.length ? `<div class="kv"><span>why P${t.priority_level}</span><b style="text-align:right;font-weight:500">${esc(full.priority_reasons.join(' · '))}</b></div>` : ''}
     </div>
 
-    <div class="grid">
-      <div class="card wide">
-        <h4>Physiological status</h4>
-        <p class="prose">${esc(t.physiological_status)}</p>
-        <h4 style="margin-top:12px">Hazard assessment</h4>
-        <p class="prose">${esc(t.hazard_assessment)}</p>
-        <h4 style="margin-top:12px">Deconflicted route plan</h4>
-        <p class="prose">${esc(t.deconflicted_route_plan)}</p>
-      </div>
-    </div>
+    <div class="card"><h4>Physiological status</h4><p class="prose">${esc(t.physiological_status)}</p>
+      <h4 style="margin-top:11px">Hazard assessment</h4><p class="prose">${esc(t.hazard_assessment)}</p>
+      <h4 style="margin-top:11px">Deconflicted route plan</h4><p class="prose">${esc(t.deconflicted_route_plan)}</p></div>
 
-    <div class="grid">
-      <div class="card">
-        <h4>Dispatcher checklist</h4>
-        <ol class="list-ol">${(t.dispatcher_checklist || []).map((c) => `<li>${esc(c)}</li>`).join('')}</ol>
-      </div>
-      <div class="card">
-        <h4>Routed assets</h4>
-        ${routes}
-        <h4 style="margin-top:10px">Protocol grounding</h4>
-        ${(full.grounding || []).map((g) => `<div style="border-left:2px solid #24405a;padding:3px 0 3px 9px;margin:6px 0;font-size:10px;color:#9db2c5"><b style="color:var(--accent)">${esc(g.chunk_id)}</b> ${esc(g.quote)}</div>`).join('') || '<div style="color:var(--dim);font-size:10.5px">none</div>'}
-      </div>
-    </div>
+    <div class="card"><h4>Dispatcher checklist</h4><ol class="cl">${(t.dispatcher_checklist || []).map((c) => `<li>${esc(c)}</li>`).join('')}</ol></div>
 
-    <div class="btns">
-      <button data-to="UNIT_ASSIGNED" class="go">ASSIGN</button>
-      <button data-to="EN_ROUTE">EN ROUTE</button>
-      <button data-to="EXTRACTED">EXTRACTED</button>
-      <button data-to="CLOSED" class="gobad">CLOSE</button>
-    </div>
+    <div class="card"><h4>Transport options (mode-aware)</h4>
+      <table class="opt"><tr><th>MODE</th><th>ASSET</th><th>ETA</th><th>VECTOR</th></tr>${optRows || '<tr><td colspan="4">no available asset</td></tr>'}</table></div>
 
-    <div class="card" style="margin-top:14px">
-      <h4>Downlink to device · 160 chars</h4>
-      <textarea id="dl" maxlength="400">${esc(t.user_satellite_reply || '')}</textarea>
-      <div class="count" id="dlCount">0 / 160</div>
-      <div class="btns"><button id="btnDl">QUEUE DOWNLINK</button></div>
-    </div>
+    <div class="card"><h4>Dispatch</h4>
+      <div class="btns" style="margin-top:0"><select id="unit" aria-label="unit" ${closed ? 'disabled' : ''}>${assets}</select>
+        <button class="go" data-to="UNIT_ASSIGNED" ${full.state === 'AI_TRIAGED' ? '' : 'disabled'}>ASSIGN</button>
+        <button data-to="EN_ROUTE" ${['UNIT_ASSIGNED'].includes(full.state) ? '' : 'disabled'}>EN ROUTE</button>
+        <button data-to="EXTRACTED" ${full.state === 'EN_ROUTE' ? '' : 'disabled'}>EXTRACTED</button>
+        <button class="danger" data-to="CLOSED" ${closed ? 'disabled' : ''}>CLOSE</button></div>
+      ${full.assigned_unit ? `<div class="kv" style="margin-top:7px"><span>assigned</span><b class="ok">${esc(full.assigned_unit.name)}</b></div>` : ''}
+      <div class="btns"><span class="sub" style="align-self:center">priority</span>${[1, 2, 3, 4, 5].map((n) => `<button data-pri="${n}" ${closed || t.priority_level === n ? 'disabled' : ''}>P${n}</button>`).join('')}</div></div>
 
-    <div class="card" style="margin-top:14px">
-      <h4>Audit trail</h4>
-      ${audit || '<div style="color:var(--dim);font-size:11px">empty</div>'}
-    </div>`;
+    <div class="card"><h4>Downlink to device · ≤160 ASCII ${covert ? '· HAPTIC ONLY' : ''}</h4>
+      <textarea id="dl" maxlength="400" ${closed ? 'disabled' : ''} aria-label="downlink text">${esc(draft)}</textarea>
+      <div class="count" id="dlCount"></div>
+      <div class="btns">${covert ? '<button class="go" data-quick="HAPTIC_ACK_ONLY">SEND HAPTIC ACK</button>' : quick.map((q) => `<button data-quick="${esc(q)}" ${closed ? 'disabled' : ''}>${esc(q.split('.')[0])}</button>`).join('')}
+        <button id="btnDl" ${closed ? 'disabled' : ''}>QUEUE TEXT</button></div>
+      ${dl ? `<div class="audit" style="margin-top:8px">${dl}</div>` : ''}</div>
 
-  el.querySelectorAll('.btns button[data-to]').forEach((b) => {
-    b.onclick = async () => {
-      try {
-        const r = await api(`/api/v1/incidents/${full.id}/transition`, {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ to: b.dataset.to, actor: 'dispatcher', reason: 'panel action' }),
-        });
-        log(`${full.id} → ${r.state}`);
-        await refresh();
-      } catch (e) { log('REFUSED: ' + e.message); }
-    };
-  });
+    <div class="card"><h4>Protocol grounding</h4>
+      ${(full.grounding || []).map((g) => `<div class="g"><b>${esc(g.chunk_id)}</b><span class="role">${esc(g.role)}</span> ${esc(g.quote)}</div>`).join('') || '<div class="sub">none</div>'}</div>
 
-  const dl = $('dl'), count = $('dlCount');
-  const sync = () => { const n = dl.value.length; count.textContent = `${n} / 160`; count.className = 'count' + (n > 160 ? ' over' : ''); };
-  dl.oninput = sync; sync();
-  $('btnDl').onclick = async () => {
-    try {
-      const r = await api(`/api/v1/incidents/${full.id}/downlink`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text: dl.value, actor: 'dispatcher' }),
-      });
-      log(`downlink queued (${r.chars} chars)`);
-    } catch (e) { log('DOWNLINK REFUSED: ' + e.message); }
-  };
+    <div class="card audit"><h4>Audit trail</h4>${audit || '<div class="sub">empty</div>'}</div>`;
+
+  el.scrollTop = scrollTop;
+  const dlEl = $('dl'), count = $('dlCount');
+  const sync = () => { const n = dlEl.value.length; count.textContent = n + ' / 160'; count.className = 'count' + (n > 160 ? ' over' : ''); drafts.set(full.id, dlEl.value); };
+  dlEl.oninput = sync; sync();
+
+  el.querySelectorAll('[data-to]').forEach((btn) => { btn.onclick = () => act(`/api/v1/incidents/${full.id}/transition`, { to: btn.dataset.to, actor: 'dispatcher', reason: 'panel action', unit: btn.dataset.to === 'UNIT_ASSIGNED' ? $('unit').value : undefined }, `${full.id} → ${btn.dataset.to}`); });
+  el.querySelectorAll('[data-pri]').forEach((btn) => { btn.onclick = () => act(`/api/v1/incidents/${full.id}/priority`, { level: Number(btn.dataset.pri), actor: 'dispatcher', reason: 'panel override' }, `${full.id} priority set to P${btn.dataset.pri}`); });
+  el.querySelectorAll('[data-cancel]').forEach((btn) => { btn.onclick = () => act(`/api/v1/incidents/${full.id}/cancel`, { accept: btn.dataset.cancel === '1', actor: 'dispatcher', reason: btn.dataset.cancel === '1' ? 'dispatcher confirmed' : 'rejected: verify off-air' }, 'cancel request resolved'); });
+  const send = (text) => act(`/api/v1/incidents/${full.id}/downlink`, { text, actor: 'dispatcher' }, `downlink queued (${text.length} chars)`).then(() => drafts.delete(full.id));
+  el.querySelectorAll('[data-quick]').forEach((btn) => { btn.onclick = () => send(btn.dataset.quick); });
+  const dlBtn = $('btnDl'); if (dlBtn) dlBtn.onclick = () => send(dlEl.value);
 }
 
+async function act(path, body, okMsg) {
+  try { await post(path, body); log(okMsg); await refresh(); } catch (e) { log('REFUSED: ' + e.message); }
+}
+
+/* ---------------- data flow ---------------- */
+async function loadFull() {
+  if (!selected) { full = null; return; }
+  try { full = await api('/api/v1/incidents/' + selected); } catch (e) { full = null; log(e.message); }
+}
+let refreshTimer = null, refreshing = false, again = false;
+function refreshSoon() { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 120); }
 async function refresh() {
-  const data = await api('/api/v1/incidents');
-  incidents = data.incidents.slice().sort((a, b) => (a.priority_level ?? 9) - (b.priority_level ?? 9));
-  $('counts').textContent = `${incidents.length} incidents · ${data.ws_clients} panel(s)`;
-  if (!selected && incidents.length) selected = incidents[0].id;
-  renderList();
-  renderDetail();
-}
-
-async function post(path, body) {
-  return api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-}
-
-async function gesture(presses) {
+  if (refreshing) { again = true; return; }
+  refreshing = true;
   try {
-    const r = await post('/api/v1/dev/wristband', { presses, held_ms: 0 });
-    log(`${r.gesture} · P${r.triage.priority_level} ${r.triage.triage_category} · ${r.packet_bytes}B · haptic ${r.haptic.length} step(s)${r.covert.silent ? ' · COVERT' : ''}`);
-    selected = r.incident_id;
+    const data = await api('/api/v1/incidents');
+    list = data.incidents;
+    if (selected && !list.some((i) => i.id === selected)) selected = null;
+    if (!selected && list.length) selected = list[0].id;
+    $('counts').textContent = `${list.length} incident(s) · ${data.ws_clients} panel(s)`;
+    await loadFull();
+    renderList(); renderMap(); renderVitals(); renderDetail();
+  } catch (e) { log(e.message); }
+  finally { refreshing = false; if (again) { again = false; refresh(); } }
+}
+async function select(id) { selected = id; view = { z: 1, ox: 0, oy: 0 }; await loadFull(); renderList(); renderMap(); renderVitals(); renderDetail(); }
+
+/* ---------------- simulator ---------------- */
+const scen = () => ({ scenario: $('scenario').value });
+const dev = () => (full && !/^(CLOSED)$/.test(full.state) ? full.device_id : undefined);
+async function sim(label, path, body) {
+  try {
+    const r = await post(path, { ...scen(), silent_mode: $('silent').checked ? true : undefined, ...body });
+    const t = r.triage;
+    log(`${label} · ${r.action || (r.delivered ? 'DELIVERED' : 'STORED')} · ${r.incident_id || ''}${t ? ' · P' + t.priority_level + ' ' + t.triage_category : ''}${r.packet_bytes ? ' · ' + r.packet_bytes + ' B' : ''}`);
+    if (r.incident_id) selected = r.incident_id;
     await refresh();
-  } catch (e) { log('GESTURE FAILED: ' + e.message); }
+  } catch (e) { log(label + ' FAILED: ' + e.message); }
 }
-
-$('btnMedical').onclick = () => gesture(3);
-$('btnHostile').onclick = () => gesture(5);
-$('btnMesh').onclick = async () => {
-  try {
-    const r = await post('/api/v1/dev/mesh', { hops: 2 });
-    log(`mesh delivered in ${r.hops} hops · ${r.incident_id} · P${r.triage.priority_level}`);
-    selected = r.incident_id; await refresh();
-  } catch (e) { log('MESH FAILED: ' + e.message); }
-};
-$('btnSim').onclick = async () => {
-  try {
-    const r = await post('/api/v1/dev/simulate', {});
-    log(`beacon ${r.incident_id} · P${r.triage.priority_level} ${r.triage.triage_category} · ${r.packet_bytes}B`);
-    selected = r.incident_id; await refresh();
-  } catch (e) { log('SIMULATE FAILED: ' + e.message); }
+$('bMed').onclick = () => sim('3× MEDICAL', '/api/v1/dev/wristband', { presses: 3 });
+$('bHos').onclick = () => sim('5× HOSTILE', '/api/v1/dev/wristband', { presses: 5 });
+$('bDur').onclick = () => sim('7× DURESS', '/api/v1/dev/wristband', { presses: 7 });
+$('bSim').onclick = () => sim('BEACON', '/api/v1/dev/simulate', {});
+$('bMesh').onclick = () => sim('MESH (no sky)', '/api/v1/dev/mesh', { sky: [] });
+$('bSky').onclick = async () => { try { const r = await post('/api/v1/dev/mesh/sky', { node: 'phone-a' }); log(`sky restored at phone-a · ${r.delivered} stored packet(s) delivered`); await refresh(); } catch (e) { log('FAILED: ' + e.message); } };
+$('bCancel').onclick = () => { if (!full) return log('select an incident first'); sim('10 s HOLD CANCEL', '/api/v1/dev/wristband', { held_ms: 10000, device_id: full.device_id }); };
+$('bDet').onclick = () => {
+  if (!full) return log('select an incident first');
+  const v = full.vitals; sim('DETERIORATE', '/api/v1/dev/simulate', { device_id: full.device_id, sos_code: full.sos_code, duress: v.duress_flag, lat: full.position.lat, lon: full.position.lon, spo2: Math.max(70, (v.spo2 || 97) - 4), heart_rate: Math.min(200, (v.heart_rate || 90) + 14), battery_pct: Math.max(1, (v.battery_pct || 50) - 3) });
 };
 
-let ws;
+/* ---------------- map interaction ---------------- */
+const mapEl = $('map');
+mapEl.addEventListener('wheel', (e) => { e.preventDefault(); view.z = Math.min(8, Math.max(0.4, view.z * (e.deltaY < 0 ? 1.15 : 1 / 1.15))); renderMap(); }, { passive: false });
+let drag = null;
+mapEl.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, ox: view.ox, oy: view.oy }; mapEl.setPointerCapture(e.pointerId); mapEl.classList.add('drag'); });
+mapEl.addEventListener('pointermove', (e) => { if (!drag) return; const r = mapEl.getBoundingClientRect(); view.ox = drag.ox + ((e.clientX - drag.x) * W) / r.width; view.oy = drag.oy + ((e.clientY - drag.y) * H) / r.height; renderMap(); });
+const endDrag = () => { drag = null; mapEl.classList.remove('drag'); };
+mapEl.addEventListener('pointerup', endDrag); mapEl.addEventListener('pointercancel', endDrag);
+$('zin').onclick = () => { view.z = Math.min(8, view.z * 1.3); renderMap(); };
+$('zout').onclick = () => { view.z = Math.max(0.4, view.z / 1.3); renderMap(); };
+$('zreset').onclick = () => { view = { z: 1, ox: 0, oy: 0 }; renderMap(); };
+
+/* ---------------- websocket ---------------- */
+let ws, backoff = 1000;
 function connect() {
-  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
-  ws.onopen = () => { $('wsDot').classList.remove('off'); log('websocket connected'); };
-  ws.onclose = () => { $('wsDot').classList.add('off'); log('websocket closed — retrying'); setTimeout(connect, 1500); };
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws' + (token() ? '?token=' + encodeURIComponent(token()) : ''));
+  ws.onopen = () => { $('wsDot').classList.add('on'); backoff = 1000; };
+  ws.onclose = () => { $('wsDot').classList.remove('on'); setTimeout(connect, backoff); backoff = Math.min(15000, backoff * 2); };
   ws.onmessage = (ev) => {
-    try {
-      const msg = JSON.parse(ev.data);
-      log(msg.type + (msg.incident_id ? ' · ' + msg.incident_id : '') + (msg.state ? ' → ' + msg.state : '') +
-          (msg.changes ? ' · re-ranked ' + msg.changes.map((c) => c.incident_id + ' P' + c.to).join(', ') : ''));
-      refresh();
-    } catch { /* ignore */ }
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type === 'INCIDENT_RERANKED') log('RE-RANKED · ' + m.changes.map((c) => `${c.incident_id} P${c.from_priority}→P${c.to_priority} (#${c.from_rank}→#${c.to_rank})`).join(', '));
+    else if (m.type === 'INCIDENT_CANCEL_REQUEST') log(`CANCEL REQUESTED · ${m.incident_id}${m.possibly_coerced ? ' · POSSIBLY COERCED' : ''}`);
+    else log(m.type + (m.incident_id ? ' · ' + m.incident_id : '') + (m.state ? ' → ' + m.state : ''));
+    refreshSoon();
   };
 }
 
-api('/api/v1/health').then((h) => {
-  const b = $('modelBadge');
-  b.textContent = h.llm.enabled ? 'LLM · ' + h.llm.model : 'RULES ONLY';
-  b.classList.toggle('on', !!h.llm.enabled);
-  b.title = h.llm.enabled ? 'model pass active, rules act as a floor' : 'deterministic rules only (no model configured)';
-}).catch(() => {});
-
-refresh();
-connect();
+/* ---------------- boot ---------------- */
+$('tok').addEventListener('change', (e) => { sessionStorage.setItem('aegis.token', e.target.value); location.reload(); });
+async function boot() {
+  try {
+    health = await api('/api/v1/health');
+    const geo = $('chipGeo'); geo.textContent = 'GEO · ' + health.geo.mode.toUpperCase(); geo.className = 'chip ' + (health.geo.mode === 'live' ? 'on' : 'warn');
+    const en = $('chipEngine'); en.textContent = health.llm.enabled ? `LLM · ${health.llm.provider}:${health.llm.model}` : 'RULES ONLY'; en.className = 'chip ' + (health.llm.enabled ? 'on' : '');
+    const ky = $('chipKeys'); ky.textContent = 'KEYS · ' + health.keys.mode; ky.className = 'chip ' + (health.keys.mode === 'ENV' ? 'on' : 'warn'); ky.title = health.keys.mode === 'EPHEMERAL' ? 'AEGIS_MASTER_KEY not set: device keys rotate on every restart' : 'master key from environment';
+    const au = $('chipAuth'); au.textContent = health.auth.startsWith('OFF') ? 'AUTH · OFF' : 'AUTH · TOKEN'; au.className = 'chip ' + (health.auth.startsWith('OFF') ? 'warn' : 'on');
+    if (!health.dev_endpoints) document.querySelector('footer').style.display = 'none';
+  } catch (e) { log(e.message); }
+  try { scenarios = (await api('/api/v1/dev/scenarios')).scenarios; $('scenario').innerHTML = scenarios.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join(''); } catch { /* dev endpoints off */ }
+  await refresh();
+  connect();
+  setInterval(() => { if (list.length) { renderList(); } }, 30000);
+}
+boot();
 </script>
 </body>
 </html>

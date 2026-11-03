@@ -3,8 +3,13 @@ syntax = "proto3";
 package aegis.telemetry.v1;
 
 // Ultra-low-bandwidth distress beacon.
-// Hard cap: the encoded message must be < 100 bytes (see MAX_PACKET_BYTES in
-// proto.mjs and the size test). Typical encoded size is 28–38 bytes.
+// Hard cap: the SEALED envelope (header + IV + tag + ciphertext) must be < 100 bytes
+// (MAX_PACKET_BYTES in src/proto.mjs). The protobuf payload is typically ~30 bytes and
+// the envelope adds 35, so a sealed beacon is ~65 bytes.
+//
+// Two encodings of this one message are accepted: protobuf (below) and CBOR, a definite
+// map keyed by the same field numbers. The decoder tells them apart by the first byte
+// (CBOR map 0xA0-0xBF vs. the protobuf device_id tag 0x08).
 
 message DistressBeacon {
   uint32 device_id    = 1;  // rotating hardware id, 0x4B21 style
@@ -27,11 +32,13 @@ message DistressBeacon {
     EVACUATION    = 4;
     WATER         = 5;
     CHILDBIRTH    = 6;
+    CANCEL        = 7;  // false alarm: closes an unassigned, non-covert incident; otherwise a request
   }
 }
 
-// Envelope (not protobuf): [version:1][key_id:1][iv:12][gcm_tag:16][ciphertext:n]
-// AES-256-GCM. The GCM tag is the authenticity check.
-//
-// CBOR fallback: TODO — not implemented in v0.1. The decode seam is
-// `crypto.decrypt -> proto.decode`; a CBOR decoder plugs in beside it.
+// Envelope v2 (not protobuf):
+//   [version:1 = 2][device_id:4 BE][epoch:2 BE][iv:12][gcm_tag:16][ciphertext:n]
+// AES-256-GCM with the 7-byte header bound as AAD, so a device cannot claim another
+// device's id. Key = HKDF-SHA256(master, salt=device_id, info="aegis/v2/epoch/<epoch>"),
+// epoch = floor(timestamp / AEGIS_KEY_EPOCH_S) (default one day): per-device, rotating.
+// The GCM tag is the signature check.

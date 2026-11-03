@@ -1,0 +1,33 @@
+/* AGPL-3.0: part of the AegisMonitor extension to WorldMonitor. See worldmonitor/VENDORED.md. */
+/* AegisMonitor CAD panel (src/components/AegisCadPanel.ts). Scoped to .aegis-* classes. */
+.aegis-bar { display: flex; justify-content: space-between; gap: 8px; font: 600 10px/1.4 var(--font-mono, monospace); padding: 4px 2px 6px; }
+.aegis-link.aegis-live { color: #38d9a0; }
+.aegis-link.aegis-offline, .aegis-link.aegis-auth { color: #ff5a6b; }
+.aegis-notice { color: var(--text-dim, #7a8ea2); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aegis-list { max-height: 190px; overflow-y: auto; border: 1px solid var(--border, #1a2735); border-radius: 6px; }
+.aegis-row { display: grid; grid-template-columns: auto auto 1fr auto; gap: 2px 7px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--border, #1a2735); cursor: pointer; }
+.aegis-row:hover { background: rgba(74, 168, 255, 0.08); }
+.aegis-row.aegis-sel { background: rgba(74, 168, 255, 0.16); box-shadow: inset 3px 0 0 #4aa8ff; }
+.aegis-row.aegis-closed { opacity: 0.45; }
+.aegis-rank { font: 700 10px var(--font-mono, monospace); color: #4d6073; }
+.aegis-pri { font: 700 10px var(--font-mono, monospace); border: 1px solid; border-radius: 3px; padding: 0 5px; }
+.aegis-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aegis-state { font: 600 9px var(--font-mono, monospace); color: #4aa8ff; justify-self: end; }
+.aegis-meta { grid-column: 1 / -1; font: 10px var(--font-mono, monospace); color: var(--text-dim, #7a8ea2); }
+.aegis-tag { font: 700 9px var(--font-mono, monospace); padding: 0 4px; border-radius: 3px; }
+.aegis-det { background: rgba(255, 47, 67, 0.18); color: #ff2f43; }
+.aegis-cov { background: rgba(122, 162, 255, 0.18); color: #7aa2ff; }
+.aegis-can { background: rgba(255, 176, 32, 0.2); color: #ffb020; }
+.aegis-detail { margin-top: 10px; display: grid; gap: 6px; font-size: 12px; }
+.aegis-detail p { margin: 0; overflow-wrap: anywhere; }
+.aegis-title { font-size: 13px; }
+.aegis-map { width: 100%; height: auto; border: 1px solid var(--border, #1a2735); border-radius: 6px; }
+.aegis-kv { display: flex; gap: 12px; flex-wrap: wrap; font: 11px var(--font-mono, monospace); }
+.aegis-banner { border: 1px solid #6b5217; background: rgba(255, 176, 32, 0.08); border-radius: 6px; padding: 6px 8px; }
+.aegis-banner.aegis-covert { border-color: #2d3b73; background: rgba(122, 162, 255, 0.08); }
+.aegis-opt { width: 100%; border-collapse: collapse; font: 10.5px var(--font-mono, monospace); }
+.aegis-opt th, .aegis-opt td { text-align: left; padding: 3px 4px; border-bottom: 1px solid var(--border, #1a2735); vertical-align: top; }
+.aegis-opt tr.aegis-rec td { background: rgba(56, 217, 160, 0.08); }
+.aegis-why { color: #ff5a6b; font-size: 9.5px; }
+.aegis-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.aegis-detail textarea { width: 100%; min-height: 50px; font: 11px var(--font-mono, monospace); background: var(--surface, #08111b); color: inherit; border: 1px solid var(--border, #22384d); border-radius: 6px; padding: 6px; }

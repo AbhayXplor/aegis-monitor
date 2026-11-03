@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0f14">
+<title>Aegis Field</title>
+<link rel="icon" href="data:,">
+<style>
+:root { color-scheme: dark; --bg:#0b0f14; --panel:#151b24; --well:#0f141c; --line:#2a3443; --text:#e8edf3; --dim:#9aa7b8; --acc:#f59e0b; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; }
+main { max-width:480px; margin:0 auto; padding:12px; display:grid; gap:14px; }
+h1 { font-size:22px; margin:0; } h2 { font-size:18px; margin:0 0 8px; }
+section { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; min-width:0; }
+.net { font-weight:800; text-align:center; padding:12px; border-radius:10px; letter-spacing:.08em; }
+.net.on { background:#14532d; color:#dcfce7; } .net.off { background:#7f1d1d; color:#fee2e2; }
+button, input { font:inherit; min-height:44px; border-radius:10px; border:1px solid var(--line); background:var(--well); color:var(--text); }
+button { background:#243041; padding:0 14px; cursor:pointer; }
+button.primary { background:var(--acc); color:#111; border-color:var(--acc); font-weight:700; width:100%; margin-top:8px; }
+input[type=text], input[type=number] { width:100%; padding:0 10px; }
+input[type=checkbox] { width:22px; height:22px; min-height:22px; accent-color:var(--acc); flex:none; }
+:focus-visible { outline:3px solid #60a5fa; outline-offset:2px; }
+.row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.between { justify-content:space-between; }
+.field { display:grid; gap:4px; font-size:14px; color:var(--dim); margin-top:10px; }
+.topics { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; margin-top:12px; }
+.card { border:1px solid var(--line); border-radius:12px; padding:12px; margin-top:10px; background:var(--well); }
+.chead { display:flex; justify-content:space-between; gap:8px; font-size:13px; color:var(--dim); margin:0; }
+.badge { background:#1e3a5f; color:#bfdbfe; border-radius:999px; padding:2px 10px; }
+.reply { font-size:20px; font-weight:800; margin:8px 0 6px; }
+.body { font-size:14px; color:var(--dim); margin:0; white-space:pre-line; }
+.llm { font-size:16px; margin:8px 0 0; white-space:pre-line; }
+.note { color:var(--dim); font-size:14px; margin:10px 0 0; }
+details { margin-top:12px; font-size:14px; color:var(--dim); }
+summary { min-height:44px; display:flex; align-items:center; cursor:pointer; color:var(--text); }
+details .field { margin-top:8px; }
+.foot { font-size:12px; color:var(--dim); margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
+.foot p { margin:4px 0; }
+.ring { --p:0; width:232px; height:232px; margin:8px auto; border-radius:50%; padding:12px; background:conic-gradient(var(--acc) calc(var(--p) * 1%), #263040 0); }
+.sos { width:100%; height:100%; border-radius:50%; border:0; background:radial-gradient(circle at 35% 30%, #ef4444, #991b1b); color:#fff; font-size:32px; font-weight:900; letter-spacing:.06em; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+.tip { font-size:13px; color:var(--dim); text-align:center; margin:8px 0; }
+.status { font-weight:700; min-height:1.5em; margin:4px 0 8px; text-align:center; }
+.pos { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+ol.outbox { list-style:none; padding:0; margin:8px 0 0; display:grid; gap:8px; }
+.item { border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--well); display:grid; gap:4px; }
+.item .st { font-size:14px; color:var(--dim); overflow-wrap:anywhere; }
+.item.sent .st { color:#86efac; } .item.rejected .st { color:#fca5a5; } .item.queued .st { color:var(--acc); }
+</style>
+</head>
+<body>
+<main>
+<div id="net" class="net off" role="status">OFFLINE</div>
+
+<section aria-labelledby="g-h">
+  <h2 id="g-h">Guidance</h2>
+  <form id="askForm">
+    <label class="field" for="q">Describe the problem</label>
+    <input id="q" type="text" autocomplete="off" enterkeyhint="search">
+    <button id="ask" class="primary" type="submit">Ask</button>
+  </form>
+  <div id="topics" class="topics"></div>
+  <div id="results" aria-live="polite"></div>
+
+  <details>
+    <summary>Local model settings (optional)</summary>
+    <label class="row"><input id="llmOn" type="checkbox"> Use local model (Ollama)</label>
+    <label class="field">Model name<input id="llmModel" type="text" autocomplete="off"></label>
+    <label class="field">URL<input id="llmUrl" type="text" autocomplete="off"></label>
+  </details>
+
+  <footer class="foot">
+    <p id="prov">Loading protocol library...</p>
+    <p>Decision support only. Not a substitute for trained medical care.</p>
+  </footer>
+</section>
+
+<section aria-labelledby="s-h">
+  <h2 id="s-h">Wristband SOS simulator</h2>
+  <div id="ring" class="ring"><button id="sos" class="sos" type="button" aria-describedby="sos-tip">SOS</button></div>
+  <p id="sos-tip" class="tip">Press 3 times: medical. 5 times: hostile extraction. 7 times: duress. Hold 10 seconds: cancel.</p>
+  <p id="status" class="status" aria-live="polite"></p>
+  <label class="row"><input id="silent" type="checkbox"> Silent mode (no vibration)</label>
+  <div class="pos">
+    <label class="field">Latitude<input id="lat" type="number" step="any" inputmode="decimal" value="25.2048"></label>
+    <label class="field">Longitude<input id="lon" type="number" step="any" inputmode="decimal" value="55.2708"></label>
+  </div>
+  <button id="geo" type="button" style="width:100%;margin-top:10px">Use my location</button>
+</section>
+
+<section aria-labelledby="o-h">
+  <div class="row between">
+    <h2 id="o-h">Outbox</h2>
+    <button id="send" type="button">Send now</button>
+  </div>
+  <p id="dev" class="tip" style="text-align:left"></p>
+  <ol id="outbox" class="outbox" aria-live="polite"></ol>
+  <p id="empty" class="note">No gestures yet.</p>
+</section>
+</main>
+
+<script type="module">
+import { VectorStore } from '/lib/rag-core.mjs';
+
+const KB_KEY = 'aegis.kb.v1', LLM_KEY = 'aegis.llm.v1', OUT_KEY = 'aegis.outbox.v1', DEV_KEY = 'aegis.device.v1', SILENT_KEY = 'aegis.silent.v1';
+const HOLD_MS = 10000, GAP_MS = 700, LLM_TIMEOUT_MS = 20000;
+// Button label -> the query it sends (a bare word is too ambiguous: "Water" would find floods before thirst).
+const TOPICS = { Bleeding: 'bleeding hemorrhage limb tourniquet', Breathing: 'breathing difficulty chest airway', Burn: 'burn', Childbirth: 'childbirth labour baby',
+  Cold: 'cold hypothermia', Heat: 'heat exhaustion', Trapped: 'trapped rubble collapse', Water: 'water thirst dehydration drink' };
+const NO_MATCH = 'No matching protocol found. Stay put, keep your beacon on, conserve battery.';
+const LLM_SYSTEM = 'You are an offline field first-aid assistant. Answer ONLY using the numbered protocol excerpts supplied by the user. If the excerpts do not cover the question, say so. Reply in plain text. Give at most 5 short imperative steps. Never invent drugs, doses or equipment.';
+const LLM_DEFAULT = { enabled: false, model: 'gemma3:4b', url: 'http://localhost:11434/api/chat' };
+const VIB = { SENT: [90], ACK: [60, 70, 60], DISPATCHED: [250, 120, 250], CANCELLED: [400] };
+const GESTURE_BY_COUNT = { 3: 'MEDICAL_SOS', 5: 'HOSTILE_EXTRACTION', 7: 'DURESS' };
+
+const $ = id => document.getElementById(id);
+const load = (key, dflt) => { try { return JSON.parse(localStorage.getItem(key)) ?? dflt; } catch { return dflt; } };
+const save = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+const text = v => (typeof v === 'string' ? v : JSON.stringify(v));
+const note = msg => { const p = document.createElement('p'); p.className = 'note'; p.textContent = msg; return p; };
+
+const deviceId = (() => {
+  let d = Number(localStorage.getItem(DEV_KEY));
+  if (!(d >= 20000 && d < 29000)) { d = 20000 + Math.floor(Math.random() * 9000); localStorage.setItem(DEV_KEY, String(d)); }
+  return d;
+})();
+const llm = { ...LLM_DEFAULT, ...load(LLM_KEY, {}) };
+let store = null, askSeq = 0, flushing = false;
+let outbox = load(OUT_KEY, []);
+let down = false, cancelled = false, presses = 0, holdStart = 0, holdTimer = null, finalTimer = null, raf = 0;
+
+// ---- network banner ----
+function paintNet() {
+  const on = navigator.onLine;
+  $('net').textContent = on ? 'ONLINE' : 'OFFLINE';
+  $('net').className = 'net ' + (on ? 'on' : 'off');
+}
+
+// ---- guidance ----
+function card(c) {
+  const el = document.createElement('article');
+  el.className = 'card';
+  const head = document.createElement('div');
+  head.className = 'chead';
+  const id = document.createElement('code');
+  id.textContent = c.id;
+  const src = document.createElement('span');
+  src.className = 'badge';
+  src.textContent = c.source;
+  head.append(id, src);
+  const reply = document.createElement('p');
+  reply.className = 'reply';
+  reply.textContent = c.reply;
+  const body = document.createElement('p');
+  body.className = 'body';
+  body.textContent = c.text;
+  el.append(head, reply, body);
+  return el;
+}
+
+async function ask(q) {
+  const query = q.trim(), seq = ++askSeq;
+  const out = $('results');
+  out.replaceChildren();
+  if (!query) { out.append(note('Describe the problem first.')); return; }
+  if (!store) { out.append(note('Protocol library not loaded.')); return; }
+  const hits = await store.query(query, 3, { minScore: 0.05 });
+  if (seq !== askSeq) return;
+  if (!hits.length) { out.append(note(NO_MATCH)); return; }
+  const chunks = hits.map(h => h.doc.chunk);
+  out.append(...chunks.map(card));
+  if (llm.enabled) askModel(query, chunks, seq);
+}
+
+async function askModel(query, chunks, seq) {
+  const excerpts = chunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n\n');
+  const wait = note('Asking local model...');
+  $('results').append(wait);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), LLM_TIMEOUT_MS);
+  try {
+    const r = await fetch(llm.url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({ model: llm.model, stream: false, messages: [
+        { role: 'system', content: LLM_SYSTEM },
+        { role: 'user', content: `Protocol excerpts:\n\n${excerpts}\n\nQuestion: ${query}` },
+      ] }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const content = (await r.json())?.message?.content;
+    if (typeof content !== 'string') throw new Error('no message content');
+    if (seq !== askSeq) return;
+    const el = document.createElement('article');
+    el.className = 'card';
+    const label = document.createElement('p');
+    label.className = 'chead';
+    label.textContent = 'Local model summary (grounded in the protocols above)';
+    const body = document.createElement('p');
+    body.className = 'llm';
+    body.textContent = content;
+    el.append(label, body);
+    $('results').append(el);
+  } catch {
+    if (seq === askSeq) $('results').append(note('Local model unreachable, showing protocols only.'));
+  } finally {
+    clearTimeout(timer);
+    wait.remove();
+  }
+}
+
+async function loadKb() {
+  let raw = null;
+  try {
+    const r = await fetch('/api/v1/kb');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    raw = await r.text();
+    localStorage.setItem(KB_KEY, raw);
+  } catch {
+    raw = localStorage.getItem(KB_KEY);
+  }
+  let kb = null;
+  try { kb = raw && JSON.parse(raw); } catch { kb = null; }
+  if (!kb || !Array.isArray(kb.chunks)) {
+    $('prov').textContent = '';
+    $('results').append(note('Protocol library unavailable: the server is unreachable and no cached copy exists. Connect once to load it.'));
+    return;
+  }
+  store = new VectorStore();
+  await store.build(kb.chunks.map(c => ({ id: c.id, text: `${c.topic} ${c.keywords} ${c.text}`, chunk: c })));
+  $('prov').textContent = kb.provenance || '';
+}
+
+for (const [t, query] of Object.entries(TOPICS)) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = t;
+  b.onclick = () => { $('q').value = query; ask(query); };
+  $('topics').append(b);
+}
+$('askForm').onsubmit = e => { e.preventDefault(); ask($('q').value); };
+
+// ---- local model settings ----
+$('llmOn').checked = llm.enabled;
+$('llmModel').value = llm.model;
+$('llmUrl').value = llm.url;
+function saveLlm() {
+  llm.enabled = $('llmOn').checked;
+  llm.model = $('llmModel').value.trim() || LLM_DEFAULT.model;
+  llm.url = $('llmUrl').value.trim() || LLM_DEFAULT.url;
+  save(LLM_KEY, llm);
+}
+for (const id of ['llmOn', 'llmModel', 'llmUrl']) $(id).addEventListener('input', saveLlm);
+
+// ---- silent mode, vibration ----
+$('silent').checked = load(SILENT_KEY, false);
+$('silent').onchange = () => save(SILENT_KEY, $('silent').checked);
+function vibrate(kind) {
+  if (!$('silent').checked && navigator.vibrate) navigator.vibrate(VIB[kind]);
+}
+
+// ---- position ----
+$('geo').onclick = () => {
+  if (!navigator.geolocation) { setStatus('Location is not available on this device. Enter coordinates.'); return; }
+  navigator.geolocation.getCurrentPosition(
+    p => { $('lat').value = p.coords.latitude.toFixed(5); $('lon').value = p.coords.longitude.toFixed(5); },
+    () => setStatus('Location denied or unavailable. Enter coordinates manually.'),
+    { enableHighAccuracy: true, timeout: 10000 });
+};
+function setStatus(msg) { $('status').textContent = msg; }
+
+// ---- SOS press-sequence state machine ----
+function ring(pct) { $('ring').style.setProperty('--p', pct.toFixed(1)); }
+function press() {
+  if (down) return;
+  down = true;
+  holdStart = performance.now();
+  holdTimer = setTimeout(holdReached, HOLD_MS);
+  tick();
+}
+function tick() {
+  if (holdTimer === null) return;
+  ring(Math.min(100, (performance.now() - holdStart) / HOLD_MS * 100));
+  raf = requestAnimationFrame(tick);
+}
+function release() {
+  if (!down) return;
+  down = false;
+  cancelAnimationFrame(raf);
+  clearTimeout(holdTimer);
+  holdTimer = null;
+  ring(0);
+  if (cancelled) { cancelled = false; return; }
+  presses++;
+  clearTimeout(finalTimer);
+  finalTimer = setTimeout(finalize, GAP_MS);
+  setStatus(`${presses} press${presses === 1 ? '' : 'es'} so far...`);
+}
+function finalize() {
+  const n = presses;
+  presses = 0;
+  finalTimer = null;
+  const gesture = GESTURE_BY_COUNT[n];
+  if (gesture) record(gesture, n);
+  else setStatus(`Gesture ignored, ${n} presses. Use 3, 5 or 7.`);
+}
+function holdReached() {
+  holdTimer = null;
+  cancelled = true;
+  presses = 0;
+  clearTimeout(finalTimer);
+  finalTimer = null;
+  ring(100);
+  record('CANCEL', 0);
+}
+
+// ---- outbox ----
+function record(gesture, count) {
+  const lat = parseFloat($('lat').value), lon = parseFloat($('lon').value);
+  const located = Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+  // A gesture with no valid position is NOT queued: the server would otherwise fill in a
+  // default location, and an SOS reported at a false position is worse than none.
+  if (!located) { setStatus('No valid position: enter coordinates or tap "Use my location", then repeat the gesture. Nothing was queued.'); return; }
+  outbox.push({
+    id: crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+    gesture, presses: count, lat, lon,
+    device_id: deviceId, silent_mode: $('silent').checked,
+    created_at: new Date().toISOString(), status: 'queued',
+  });
+  save(OUT_KEY, outbox);
+  vibrate(gesture === 'CANCEL' ? 'CANCELLED' : 'SENT');
+  setStatus(`Detected ${gesture}${count ? ` after ${count} presses` : ''}. Stored on this phone.`);
+  render();
+  flush();
+}
+
+async function flush() {
+  if (flushing || !navigator.onLine) { render(); return; }
+  flushing = true;
+  try {
+    for (const it of outbox) {
+      if (it.status !== 'queued') continue;
+      const body = it.gesture === 'CANCEL'
+        ? { held_ms: HOLD_MS, device_id: it.device_id, lat: it.lat, lon: it.lon }
+        : { presses: it.presses, device_id: it.device_id, lat: it.lat, lon: it.lon, silent_mode: it.silent_mode };
+      let r;
+      try {
+        r = await fetch('/api/v1/dev/wristband', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      } catch {
+        break; // network error: keep this item and everything after it queued, in order
+      }
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        it.status = 'sent';
+        it.action = j.action;
+        it.incident_id = j.incident_id;
+        vibrate(j.incident_id ? 'DISPATCHED' : 'ACK');
+      } else if (r.status >= 400 && r.status < 500) {
+        it.status = 'rejected';
+        it.error = j.error || `HTTP ${r.status}`;
+      } else {
+        break; // server error: keep queued, retry on next flush
+      }
+      save(OUT_KEY, outbox);
+      render();
+    }
+  } finally {
+    flushing = false;
+    save(OUT_KEY, outbox);
+    render();
+  }
+}
+
+function statusText(it) {
+  if (it.status === 'sent') return 'sent' + (it.action ? ` · action: ${text(it.action)}` : '') + (it.incident_id ? ` · incident ${text(it.incident_id)}` : '');
+  if (it.status === 'rejected') return `rejected: ${text(it.error)}`;
+  return navigator.onLine ? 'queued, will retry' : 'stored on this phone, will send when a connection returns';
+}
+function itemEl(it) {
+  const li = document.createElement('li');
+  li.className = `item ${it.status}`;
+  const title = document.createElement('strong');
+  title.textContent = `${it.gesture}${it.presses ? ` x${it.presses}` : ''} at ${new Date(it.created_at).toLocaleTimeString()}`;
+  const st = document.createElement('span');
+  st.className = 'st';
+  st.textContent = statusText(it);
+  li.append(title, st);
+  return li;
+}
+function render() {
+  $('outbox').replaceChildren(...outbox.map(itemEl));
+  $('empty').hidden = outbox.length > 0;
+}
+
+// ---- wiring ----
+const sos = $('sos');
+sos.addEventListener('pointerdown', e => { e.preventDefault(); sos.setPointerCapture(e.pointerId); press(); });
+sos.addEventListener('pointerup', release);
+sos.addEventListener('pointercancel', release);
+sos.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); press(); } });
+sos.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') release(); });
+sos.addEventListener('contextmenu', e => e.preventDefault());
+$('send').onclick = () => flush();
+addEventListener('online', () => { paintNet(); flush(); });
+addEventListener('offline', () => { paintNet(); render(); });
+
+$('dev').textContent = `Device ${deviceId}`;
+paintNet();
+render();
+loadKb();
+flush();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/field-sw.js').catch(() => {});
+</script>
+</body>
+</html>

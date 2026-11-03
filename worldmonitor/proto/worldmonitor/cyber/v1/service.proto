@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package worldmonitor.cyber.v1;
+
+import "sebuf/http/annotations.proto";
+import "worldmonitor/cyber/v1/list_cyber_threats.proto";
+
+// CyberService provides APIs for cyber threat intelligence aggregated from
+// Feodo, URLhaus, OTX, AbuseIPDB, and C2Intel.
+service CyberService {
+  option (sebuf.http.service_config) = {base_path: "/api/cyber/v1"};
+
+  // Browse cached cyber threat indicators by type, source and minimum severity, with cursor pagination and indicator details for threat intelligence investigation.
+  rpc ListCyberThreats(ListCyberThreatsRequest) returns (ListCyberThreatsResponse) {
+    option (sebuf.http.config) = {path: "/list-cyber-threats", method: HTTP_METHOD_GET};
+  }
+}

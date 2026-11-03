@@ -9,10 +9,16 @@ export const STATES = [
   'CLOSED',
 ];
 
-// from -> to -> allowed actors
+// A state is "open" while the survivor still needs the system (a new packet from the
+// same device updates it rather than creating a duplicate incident).
+export const OPEN_STATES = ['SOS_RECEIVED', 'AI_TRIAGED', 'UNIT_ASSIGNED', 'EN_ROUTE'];
+
+// from -> to -> allowed actors.
+// 'device' may close only before any unit is committed: after assignment a cancel from
+// the wristband is a request the dispatcher must confirm (the wearer may be coerced).
 export const TRANSITIONS = {
-  SOS_RECEIVED: { AI_TRIAGED: ['system'], CLOSED: ['dispatcher'] },
-  AI_TRIAGED: { UNIT_ASSIGNED: ['dispatcher'], CLOSED: ['dispatcher'] },
+  SOS_RECEIVED: { AI_TRIAGED: ['system'], CLOSED: ['dispatcher', 'device'] },
+  AI_TRIAGED: { UNIT_ASSIGNED: ['dispatcher'], CLOSED: ['dispatcher', 'device'] },
   UNIT_ASSIGNED: { EN_ROUTE: ['unit', 'dispatcher'], CLOSED: ['dispatcher'] },
   EN_ROUTE: { EXTRACTED: ['unit', 'dispatcher'], CLOSED: ['dispatcher'] },
   EXTRACTED: { CLOSED: ['dispatcher'] },

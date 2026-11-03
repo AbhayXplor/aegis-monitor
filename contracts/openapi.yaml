@@ -1,40 +1,50 @@
 openapi: 3.1.0
 info:
-  title: AegisMonitor — aegis-core-service
-  version: 0.1.0
+  title: AegisMonitor aegis-core-service
+  version: 0.2.0
   description: >
-    Proprietary core service. Decoupled from worldmonitor (AGPL-3.0) by design:
-    the only integration surface is REST + WebSocket, so no AGPL code is linked
-    into this service.
+    Core service. Decoupled from WorldMonitor (AGPL-3.0) by design: the only integration
+    surface is this REST + WebSocket API, so no AGPL code is linked into the service. The
+    WorldMonitor-side extension (worldmonitor/src/services/aegis-cad.ts) is a client of it.
+
+    Conventions: every mutating call needs `Content-Type: application/json` (415 otherwise;
+    this blocks cross-site simple POSTs). When AEGIS_DISPATCH_TOKEN is set, every /api/v1
+    route except /health, /kb, /contracts and /sat-ingest needs `Authorization: Bearer <token>`.
+    CORS is an allowlist (AEGIS_CORS_ORIGINS), never a wildcard. `/dev/*` routes exist only
+    when AEGIS_DEV is not "0".
 servers:
-  - url: http://localhost:3001
+  - url: http://127.0.0.1:3001
 paths:
   /api/v1/sat-ingest:
     post:
-      summary: Ingest one encrypted beacon envelope
+      summary: Ingest one sealed beacon envelope (satellite webhook)
+      description: >
+        Authenticated by AES-256-GCM under the per-device derived key, not by dispatcher token.
+        Accepts the raw envelope, JSON `{envelope_base64}`, a RockBLOCK/Iridium SBD form post
+        (`data` = hex), or a Swarm Hive webhook (`data` = base64). The provider adapters follow
+        the providers' published payload shapes and have NOT been exercised against live traffic.
+        The reply deliberately carries no triage detail.
       requestBody:
         required: true
         content:
           application/octet-stream:
-            schema: { type: string, format: binary, description: "[ver:1][keyId:1][iv:12][tag:16][ct:n], AES-256-GCM" }
+            schema: { type: string, format: binary, description: "[ver:1][device_id:4][epoch:2][iv:12][tag:16][ct:n], < 100 bytes total" }
           application/json:
-            schema:
-              type: object
-              properties:
-                envelope_base64: { type: string }
+            schema: { type: object, properties: { envelope_base64: { type: string }, data: { type: string } } }
+          application/x-www-form-urlencoded:
+            schema: { type: object, properties: { data: { type: string, description: hex }, imei: { type: string }, momsn: { type: string } } }
       responses:
-        "201":
-          description: Incident created and triaged
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/IngestResponse" }
-        "401": { description: Authentication failed (GCM tag) }
-        "409": { description: Replay or stale timestamp }
+        "201": { description: Incident created, content: { application/json: { schema: { $ref: "#/components/schemas/IngestResponse" } } } }
+        "200": { description: Existing incident updated, or an exact duplicate envelope (idempotent), content: { application/json: { schema: { $ref: "#/components/schemas/IngestResponse" } } } }
+        "400": { description: Body unreadable }
+        "401": { description: Authentication failed (GCM tag, or header does not match the authenticated payload) }
+        "403": { description: Device revoked, or not provisioned while provisioning is closed }
+        "409": { description: Replay, timestamp not newer than the last seen for this device }
         "413": { description: Envelope at or above the 100 byte cap }
-        "422": { description: Decode or field validation failed }
+        "422": { description: Decode or field validation failed, or beacon from the future / older than the max age }
   /api/v1/incidents:
     get:
-      summary: List incidents for the CAD panel
+      summary: Open incidents in queue order, then closed ones
       responses:
         "200":
           description: Incident summaries
@@ -47,17 +57,14 @@ paths:
                   ws_clients: { type: integer }
   /api/v1/incidents/{id}:
     get:
-      summary: Full incident record including triage and audit trail
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      responses:
-        "200": { description: Incident }
-        "404": { description: Unknown incident }
+      summary: Full record (triage, deconfliction, grounding, history, telemetry, downlinks, audit)
+      parameters: [ { $ref: "#/components/parameters/id" } ]
+      responses: { "200": { description: Incident }, "404": { description: Unknown incident } }
   /api/v1/incidents/{id}/transition:
     post:
       summary: Apply a CAD state transition
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
+      description: UNIT_ASSIGNED records the unit (defaults to the recommended asset) and queues a DISPATCHED haptic to the device.
+      parameters: [ { $ref: "#/components/parameters/id" } ]
       requestBody:
         required: true
         content:
@@ -66,75 +73,98 @@ paths:
               type: object
               required: [to, actor]
               properties:
-                to: { type: string, enum: [AI_TRIAGED, UNIT_ASSIGNED, EN_ROUTE, EXTRACTED, CLOSED] }
-                actor: { type: string, enum: [system, dispatcher, unit] }
+                to: { enum: [AI_TRIAGED, UNIT_ASSIGNED, EN_ROUTE, EXTRACTED, CLOSED] }
+                actor: { enum: [system, dispatcher, unit, device] }
                 reason: { type: string }
-      responses:
-        "200": { description: Transition applied }
-        "409": { description: Illegal transition or actor not permitted }
+                unit: { type: string, description: "asset id or name from the incident's context.assets" }
+      responses: { "200": { description: Transitioned }, "409": { description: Illegal transition or wrong actor }, "422": { description: Unknown or missing unit } }
+  /api/v1/incidents/{id}/priority:
+    post:
+      summary: Dispatcher priority override (cannot go below what the vitals or duress demand)
+      parameters: [ { $ref: "#/components/parameters/id" } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [level], properties: { level: { type: integer, minimum: 1, maximum: 5 }, actor: { type: string }, reason: { type: string } } } } } }
+      responses: { "200": { description: Re-triaged }, "409": { description: Incident closed }, "422": { description: Level out of range } }
+  /api/v1/incidents/{id}/cancel:
+    post:
+      summary: Resolve a pending wristband cancel request
+      parameters: [ { $ref: "#/components/parameters/id" } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [accept], properties: { accept: { type: boolean }, actor: { type: string }, reason: { type: string } } } } } }
+      responses: { "200": { description: Resolved }, "409": { description: No pending cancel request } }
   /api/v1/incidents/{id}/downlink:
     post:
-      summary: Queue a satellite downlink to the device
-      parameters:
-        - { name: id, in: path, required: true, schema: { type: string } }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [text]
-              properties:
-                text: { type: string, maxLength: 160, description: ASCII only }
-      responses:
-        "200": { description: Queued }
-        "422": { description: Too long or non-ASCII }
-  /api/v1/health:
-    get:
-      summary: Liveness, counters and feature status
-      responses:
-        "200": { description: OK }
-  /api/v1/dev/simulate:
+      summary: Queue a downlink to the device
+      description: >
+        Text is ASCII, 1-160 chars. Duress and silent-mode incidents accept only the literal
+        `HAPTIC_ACK_ONLY`, which is queued as a haptic acknowledgement (409 otherwise).
+      parameters: [ { $ref: "#/components/parameters/id" } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [text], properties: { text: { type: string, maxLength: 160 }, actor: { type: string } } } } } }
+      responses: { "200": { description: Queued }, "409": { description: Covert incident or closed incident }, "422": { description: Empty, over 160 chars, or non-ASCII } }
+  /api/v1/devices:
+    get: { summary: Device registry, responses: { "200": { description: Devices } } }
+  /api/v1/devices/{device_id}:
+    put:
+      summary: Provision, relabel, set silent mode, or revoke a device
+      parameters: [ { name: device_id, in: path, required: true, schema: { type: integer } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { label: { type: string }, silent_mode: { type: boolean }, revoked: { type: boolean } } } } } }
+      responses: { "200": { description: Device } }
+  /api/v1/devices/{device_id}/downlink/pull:
     post:
-      summary: DEV ONLY — build, encrypt and ingest a synthetic beacon
-      responses:
-        "201": { description: Synthetic incident created }
-        "403": { description: Disabled via AEGIS_DEV=0 }
+      summary: Satellite provider / gateway pulls pending MT messages for a device (marks them delivered)
+      parameters: [ { name: device_id, in: path, required: true, schema: { type: integer } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses: { "200": { description: "messages: [{id, kind: HAPTIC|TEXT, body, created_at}]" } }
+  /api/v1/health:
+    get: { summary: Counters, key mode, geo mode, model config, KB info, mesh state; honest feature flags, responses: { "200": { description: OK } } }
+  /api/v1/kb:
+    get: { summary: The protocol knowledge base (also what the offline field app caches), responses: { "200": { description: KB } } }
+  /api/v1/dev/simulate:
+    post: { summary: "DEV: sealed beacon (protobuf or cbor) for a device", responses: { "201": { description: Created }, "200": { description: Updated } } }
+  /api/v1/dev/wristband:
+    post: { summary: "DEV: timed button events -> gesture -> (PPG) -> packet. 3=medical, 5=hostile, 7=duress, hold 10 s=cancel packet", responses: { "201": { description: Created }, "200": { description: Updated / cancelled }, "400": { description: No gesture } } }
+  /api/v1/dev/mesh:
+    post: { summary: "DEV: send through the BLE/LoRa store-and-forward simulation; with no sky node the packet is stored (202)", responses: { "201": { description: Delivered }, "202": { description: Stored } } }
+  /api/v1/dev/mesh/sky:
+    post: { summary: "DEV: give a mesh node sky visibility, flushing stored packets", responses: { "200": { description: Flushed } } }
+  /api/v1/dev/scenarios:
+    get: { summary: "DEV: scenario locations", responses: { "200": { description: Scenarios } } }
 components:
+  parameters:
+    id: { name: id, in: path, required: true, schema: { type: string, pattern: "^INC-[0-9]{4,}$" } }
   schemas:
     IngestResponse:
       type: object
       properties:
-        incident_id: { type: string, example: INC-0001 }
-        state: { type: string, example: AI_TRIAGED }
-        triage: { $ref: "https://aegis.local/schemas/triage-output.v1.json" }
+        action: { enum: [CREATED, UPDATED, DUPLICATE, CANCEL_CLOSED, CANCEL_REQUESTED, CANCEL_NO_OPEN_INCIDENT] }
+        incident_id: { type: [string, "null"] }
+        duplicate: { type: boolean }
+        state: { type: [string, "null"] }
     IncidentSummary:
       type: object
       properties:
         id: { type: string }
+        device_id: { type: integer }
         device_label: { type: string }
-        state: { type: string }
-        received_at: { type: string, format: date-time }
-        position:
-          type: object
-          properties:
-            lat: { type: number }
-            lon: { type: number }
-            altitude_m: { type: integer }
-        vitals:
-          type: object
-          properties:
-            heart_rate: { type: ["integer", "null"] }
-            spo2: { type: ["integer", "null"] }
-            battery_pct: { type: ["integer", "null"] }
-            duress_flag: { type: boolean }
-        priority: { type: ["string", "null"], enum: [P1, P2, P3, null] }
-        category: { type: ["string", "null"] }
+        state: { enum: [SOS_RECEIVED, AI_TRIAGED, UNIT_ASSIGNED, EN_ROUTE, EXTRACTED, CLOSED] }
+        priority_level: { type: [integer, "null"] }
+        category: { type: [string, "null"] }
+        queue_rank: { type: [integer, "null"], description: "1 = most urgent open incident; null when closed or extracted" }
+        deteriorating: { type: boolean }
+        covert: { type: boolean, description: "duress flag or device silent mode" }
+        packets: { type: integer }
+        age_s: { type: number, description: "age of the newest beacon when it arrived" }
+        battery: { type: object, properties: { eta_min: { type: [integer, "null"] }, model: { enum: [observed, assumed, none] } } }
+        assigned_unit: { type: [object, "null"] }
+        cancel_request: { type: [object, "null"] }
+    TriageOutput:
+      $ref: triage-output.schema.json
 x-websocket:
-  url: ws://localhost:3001/ws
-  direction: server-to-client only
+  path: /ws
+  note: Same-origin or allow-listed origin only; `?token=` when a dispatcher token is configured. Server pings every 25 s.
   events:
     - INCIDENT_CREATED
+    - INCIDENT_UPDATED
     - INCIDENT_TRIAGED
+    - INCIDENT_RERANKED   # { changes: [{ incident_id, from_priority, to_priority, from_rank, to_rank, reasons }] }
     - INCIDENT_STATE
+    - INCIDENT_CANCEL_REQUEST
     - DOWNLINK_QUEUED
