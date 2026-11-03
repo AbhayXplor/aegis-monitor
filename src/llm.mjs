@@ -1,4 +1,4 @@
-// Gemma 4 (or any chat model) adapter.
+// Gemma / Gemini model adapter.
 //
 // Disabled unless AEGIS_LLM=1 AND AEGIS_LLM_URL is set. The key is read from the
 // server environment only — never from the browser, never logged, never returned.
@@ -6,6 +6,8 @@
 // Design rules:
 //  - The system prompt is read from contracts/Modelfile, so there is exactly one copy.
 //  - Output must parse as JSON and pass the §3 schema, or we fall back to rules.
+//  - A model chain is tried in order (primary, then AEGIS_LLM_FALLBACK), so a 503
+//    on one model does not take the demo down.
 //  - Safety floors run AFTER the model: urgency may only go up, never down; covert
 //    incidents stay covert; assets must exist in the supplied context; reply stays
 //    ASCII <= 160. A model cannot invent a hospital into existence.
@@ -18,14 +20,21 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CATEGORIES = ['MEDEVAC', 'COMBAT_EXTRACTION', 'HOSTAGE_COVERT', 'SAR', 'SUPPLY_DROP'];
 const KEYS = ['incident_id', 'priority_level', 'triage_category', 'physiological_status',
   'hazard_assessment', 'deconflicted_route_plan', 'dispatcher_checklist', 'user_satellite_reply'];
+const TRANSIENT = new Set([429, 500, 502, 503, 504]);
 
 export function llmConfig() {
   const url = process.env.AEGIS_LLM_URL || '';
+  const primary = process.env.AEGIS_LLM_MODEL || 'gemma4';
+  const fallbacks = (process.env.AEGIS_LLM_FALLBACK || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   return {
     enabled: process.env.AEGIS_LLM === '1' && !!url,
     url,
     provider: (process.env.AEGIS_LLM_PROVIDER || 'openai').toLowerCase(),
-    model: process.env.AEGIS_LLM_MODEL || 'gemma4',
+    model: primary,
+    models: [primary, ...fallbacks.filter((m) => m !== primary)],
     keyPresent: !!(process.env.AEGIS_LLM_KEY || process.env.OPENAI_API_KEY),
     timeoutMs: Number(process.env.AEGIS_LLM_TIMEOUT_MS || 8000),
   };
@@ -39,21 +48,23 @@ export function systemPrompt() {
   return m[1].trim();
 }
 
-function requestBody(cfg, payload) {
+function requestBody(cfg, payload, model) {
   const messages = [
     { role: 'system', content: systemPrompt() },
     { role: 'user', content: JSON.stringify(payload) },
   ];
   if (cfg.provider === 'ollama') {
-    return { model: cfg.model, messages, stream: false, format: 'json', options: { temperature: 0 } };
+    return { model, messages, stream: false, format: 'json', options: { temperature: 0 } };
   }
-  return { model: cfg.model, messages, temperature: 0, response_format: { type: 'json_object' } };
+  return { model, messages, temperature: 0, response_format: { type: 'json_object' } };
 }
 
 function extractContent(cfg, body) {
   if (cfg.provider === 'ollama') return body?.message?.content ?? body?.response ?? '';
   return body?.choices?.[0]?.message?.content ?? '';
 }
+
+const stripFences = (s) => String(s).replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
 
 /** Apply hard floors the model is not allowed to override. */
 export function enforceFloors(modelTriage, { ruleTriage, context, incidentId }) {
@@ -134,9 +145,21 @@ export function validateShape(obj) {
   return null;
 }
 
+async function callModel(cfg, payload, model, headers, relaxed = false) {
+  const body = requestBody(cfg, payload, model);
+  if (relaxed) delete body.response_format;
+  const res = await fetch(cfg.url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(cfg.timeoutMs),
+  });
+  return res;
+}
+
 export async function enhance({ incident, ruleTriage, grounding, context }) {
   const cfg = llmConfig();
-  if (!cfg.enabled) return { triage: ruleTriage, used: 'rules', reason: 'llm disabled' };
+  if (!cfg.enabled) return { triage: ruleTriage, used: 'rules', reason: 'llm disabled', model: null };
 
   const payload = {
     incident_id: incident.id,
@@ -157,41 +180,47 @@ export async function enhance({ incident, ruleTriage, grounding, context }) {
   const key = process.env.AEGIS_LLM_KEY || process.env.OPENAI_API_KEY;
   if (key) headers.authorization = `Bearer ${key}`;
 
-  const send = (body) => fetch(cfg.url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(cfg.timeoutMs),
-  });
+  const failures = [];
+  for (const model of cfg.models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let res;
+      try {
+        res = await callModel(cfg, payload, model, headers);
+        if (!res.ok && cfg.provider !== 'ollama') {
+          res = await callModel(cfg, payload, model, headers, true);
+        }
+      } catch (e) {
+        failures.push(`${model}: unreachable (${e.name})`);
+        break;
+      }
 
-  let raw;
-  let status = 0;
-  try {
-    let res = await send(requestBody(cfg, payload));
-    status = res.status;
-    // Some OpenAI-compatible gateways reject response_format. Retry once relaxed.
-    if (!res.ok && cfg.provider !== 'ollama') {
-      const relaxed = requestBody(cfg, payload);
-      delete relaxed.response_format;
-      res = await send(relaxed);
-      status = res.status;
+      if (!res.ok) {
+        failures.push(`${model}: HTTP ${res.status}`);
+        if (TRANSIENT.has(res.status) && attempt === 0) {
+          await new Promise((r) => setTimeout(r, 450));
+          continue;
+        }
+        break;
+      }
+
+      let parsed;
+      try {
+        parsed = JSON.parse(stripFences(extractContent(cfg, await res.json())));
+      } catch {
+        failures.push(`${model}: non-JSON`);
+        break;
+      }
+
+      const shapeError = validateShape(parsed);
+      if (shapeError) {
+        failures.push(`${model}: ${shapeError}`);
+        break;
+      }
+
+      const { triage, notes } = enforceFloors(parsed, { ruleTriage, context, incidentId: incident.id });
+      return { triage, used: 'llm', model, reason: notes.length ? notes.join('; ') : 'accepted', notes };
     }
-    if (!res.ok) return { triage: ruleTriage, used: 'rules', reason: `model HTTP ${status}` };
-    raw = extractContent(cfg, await res.json());
-  } catch (e) {
-    return { triage: ruleTriage, used: 'rules', reason: 'model unreachable: ' + e.name };
   }
 
-  let parsed;
-  try {
-    parsed = JSON.parse(typeof raw === 'string' ? raw.replace(/^```(?:json)?|```$/g, '').trim() : raw);
-  } catch {
-    return { triage: ruleTriage, used: 'rules', reason: 'model returned non-JSON' };
-  }
-
-  const shapeError = validateShape(parsed);
-  if (shapeError) return { triage: ruleTriage, used: 'rules', reason: shapeError };
-
-  const { triage, notes } = enforceFloors(parsed, { ruleTriage, context, incidentId: incident.id });
-  return { triage, used: 'llm', reason: notes.length ? notes.join('; ') : 'accepted', notes };
+  return { triage: ruleTriage, used: 'rules', reason: failures.join(' | ') || 'no model responded', model: null };
 }

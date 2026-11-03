@@ -220,7 +220,7 @@ export function createApp() {
         };
         const envelope = encrypt(encode(msg), body.key_id || 'k1');
         const inc = await ingest(envelope, { source: 'DEV_SIMULATE', deviceHint: body.device_label || 'WRIST-' + msg.device_id.toString(16).toUpperCase() });
-        return json(res, 201, { incident_id: inc.id, state: inc.state, triage: inc.triage, packet_bytes: envelope.length });
+        return json(res, 201, { incident_id: inc.id, state: inc.state, triage: inc.triage, model: inc.model, packet_bytes: envelope.length });
       }
 
       // Wristband gesture path: presses -> gesture -> PPG -> packet -> ingest.
@@ -255,6 +255,7 @@ export function createApp() {
           packet_bytes: envelope.length,
           incident_id: inc.id,
           triage: inc.triage,
+          model: inc.model,
         });
       }
 
